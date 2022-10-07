@@ -1,30 +1,96 @@
-import os
+# coding=utf-8
+
+import sys, os, argparse
 from Bio.PDB import PDBParser, PDBIO
 from Bio.PDB.PDBIO import Select
 from Bio.PDB.SASA import ShrakeRupley
 
 # Variables globales
 
+ATOM_POS_RECORD = \
+    {
+    "ATOM":slice(0,6),"serial":slice(6,11),
+    "atome_name":slice(12,16),"a_location":slice(16,17),
+    "res_name":slice(17,20),"chain":slice(21,22),
+    "res_nb":slice(22,26),"icode":slice(26,27),
+    "x":slice(30,38),"y":slice(38,46),"z":slice(46,54),
+    "occupancy":slice(54,60),"temperature":slice(60,66),
+    "element":slice(76,78),"charge":slice(78,80)
+    } # Position de chacune des colonnes dans un fichier pdb
+
+# argparse module utile pour parser les options lors de l'exécution du script
+# Nous exigereons d'exécuter notre fichier python en ajoutant en argument
+#   le nom du fichier pdb à traiter
+
+# python pdb_file [-o] repository_out
+parser = argparse.ArgumentParser(description="")
+parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb')
+parser.add_argument('-o','--pdb_out', type=str,help="Emplacement où sera enregistré notre fichier de sortie")
+
+args = parser.parse_args() # Valeurs des arguments passés en argument par l'utilisateur
+
+# Fichier PDB
 parser = PDBParser(QUIET=True)# Lecture Fichier PDB; QUIET=TRUE n'affiche pas msg d'erreur
 io = PDBIO() # Sauvegarde fichier pdb seulements model/atomes
 sr = ShrakeRupley() # Calcul de la surface accessible
 
-atome_pos_record = \
-    {
-    "ATOM":(1,4),"serial":(7,11),"atome_name":(13,16),
-    "a_location":(17,17),"res_name":(18,20),"chain":(22,22),
-    "res_num":(23,26),"res_code":(27,27),
-    "x":(31,38),"y":(39,46),"z":(47,54),
-    "occupancy":(55,60),"temperature":(61,66),
-    "segment":(73,76),"element":(77,78)
-    } # Position de chacune des colonnes dans un fichier pdb
+# Vérification des chemins du fichier pdb, et répertoire
 
-a_pos_record = {key:slice(val[0]-1,val[1]) for key,val in atome_pos_record.items()}
+# PDB en entrée : Emplacement et nom de notre fichier pdb reçu en entrée
+path_to_pdb = args.pdb_file.split("/")
 
+pdb_directory = "./"
+pdb_file = ""
+pdb_file_name = ""
+pdb_file_extension = ""
 
+if len(path_to_pdb) > 1: # On assigne à pdb_directory le répertoire où se trouve notre fichier à changer
+    pdb_directory = "/".join(path_to_pdb[:-1])+"/"
+
+pdb_file_name, pdb_file_extension = os.path.splitext(path_to_pdb[-1]) #nom et extension du fichier pdb
+pdb_file = path_to_pdb[-1] # Nom complet (avec extension) de notre fichier
+
+# PDB en sortie : Emplacement et noms de notre répertoire et fichier pdb en sortie
+pdb_out_directory = os.path.join(pdb_directory,"PDB_Atyping") # Chemin vers le répertoire à créer
+pdb_out_file = pdb_file_name + "_Atyping" + pdb_file_extension # nom du fichier pdb à créer
+
+# Chemin complets pour nos fichiers
+path_file = args.pdb_file # chemin du fichier pdb en entrée
+path_out_file = os.path.join(pdb_out_directory, pdb_out_file) # chemin du fichier pdb en sortie
+
+# Création et vérification fichier/répertoire
+
+#   Vérification de l'existence des fichier
+path_exists = os.path.exists(path_file) # verifie si le fichier pdb existe
+if not path_exists:
+    error_message = \
+    f"""
+    Le fichier pdb dont vous avez spéficié le chemin n'éxiste pas
+    path="{path_file}"\n
+    """
+    sys.exit(error_message)
+
+#   Création de notre répertoire
+if not os.path.isdir(pdb_out_directory): # verifie si le fichier pdb existe
+    os.mkdir(pdb_out_directory)
+
+# Biopython
+# PDBParser
+# Importation de notre fichier pdb dans un objet
+structure = parser.get_structure(pdb_file_name, path_file) # PDBParser
+io.set_structure(structure) # nous permettra de créer un fichier pdb
+
+# Calcul de la surface accessible de chacun des atomes pour chaques chaînes de notre protéine
+for model in structure:
+    for chaine in model:
+        sr.compute(chaine, level="A")
+
+path_exists = os.path.exists(path_out_file) # verifie le chemin du fichier pdb modifie
+
+exit()
 # Fonctions
 
-def is_Carbone_R(str_carbone): # Verifie si Carbone d'une chaîne latérale
+def is_Carbone_R(str_carbone): # Verifie si Carbone d'une chaine laterale
     str_carbone_c = str_carbone.strip()
     if len(str_carbone_c) <= 1: 
         #Verifie que nous ne sommes pas sur le carbone COO
@@ -41,79 +107,38 @@ def is_aromatique(str_acide_amine): # Verifie si carbone aromatique
     aromatiques_valides = ["HIS","PHE","TYR","TRP"]
     return str_acide_amine.strip() in aromatiques_valides
 
-# Classe a utiliser pour lors de la creation de notre fichier à l'aide du module
-#   PDBIO, permet de spécifier quelles atomes/résidus/chaines/modeles nous voulons garder
-#   ici je l'utilise pour qu'il affecte la valeur SASA au b_factor juste avant la creation du fichier
-class CASelect(Select):
-    def accept_atom(self,atom):
-        atom.set_bfactor(atom.sasa)
-        return 1
-# Main
-
-pdb_directory = "PDB" # repertoire ou se situe le fichier .pdb
-
-pdb_file_name = "2ptn" # nom du fichier
-pdb_file_extension = ".pdb" # extension du fichier
-pdb_file = pdb_file_name + pdb_file_extension # nom complet du fichier pdb
-
-pdb_output_directory = pdb_directory+"_patch"
-pdb_output_file = pdb_file_name + "_patch" + pdb_file_extension # nom du fichier pdb modifié
-
-path_file = os.path.join(pdb_directory, pdb_file) # chaîne "pdb_dicretory/pdb_file"
-path_output_file = os.path.join(pdb_output_directory, pdb_output_file)
-
-path_exists = os.path.exists(path_file) # verifie si le fichier pdb existe
-
-print(f"Fichier existe={str(path_exists)}\n > path={path_file} \n")
-
-#BioPDB lecture du fichier pdb
-structure = parser.get_structure(pdb_file_name, path_file) # PDBParser
-io.set_structure(structure) # nous permettra de créer un fichier pdb
-
-# Calcul de la surface accessible de chacun des atomes pour chaques chaînes de notre protéine
-for model in structure:
-    for chaine in model:
-        sr.compute(chaine, level="A")
-
-# Creation de notre nouveau fichier pdb avec valeur SASA
-if not os.path.isdir(pdb_output_directory): # verifie si le fichier pdb existe
-    os.mkdir(pdb_output_directory)
-
-io.save(path_output_file,CASelect())
-path_exists = os.path.exists(path_output_file) # verifie le chemin du fichier pdb modifie
-
 #Ouverture du fichier pdb en lecture et ecriture pour ajouter les element ('a','b','A')
-with open(path_output_file, "r+") as pdb_out:
+with open(path_out_file, "r+") as pdb_out:
     offset = 0 # position dans le cadre de lecture
     numero_ligne = 0 # numero de la ligne dans le fichier pdb
 
     # taille de la section element
-    element_length = a_pos_record["element"].stop-a_pos_record["element"].start 
+    element_length = ATOM_POS_RECORD["element"].stop-ATOM_POS_RECORD["element"].start 
     
     for lines in pdb_out:
-        if "ATOM" not in lines[a_pos_record["ATOM"]]: 
+        if "ATOM" not in lines[ATOM_POS_RECORD["ATOM"]]: 
             pass
 
-        atome_name = lines[a_pos_record["atome_name"]]# nom de l'atome a notre ligne
-        res_name = lines[a_pos_record["res_name"]] # nom du residu a notre ligne
+        atome_name = lines[ATOM_POS_RECORD["atome_name"]]# nom de l'atome a notre ligne
+        res_name = lines[ATOM_POS_RECORD["res_name"]] # nom du residu a notre ligne
 
         if is_Calpha(atome_name):
             # On modifie le nom de l'élement à "a" si carbone alpha
             str_to_write = f"{'a':<{element_length}}"
-            pdb_out.seek(offset+a_pos_record["element"].start+1)
+            pdb_out.seek(offset+ATOM_POS_RECORD["element"].start+1)
             pdb_out.write(str_to_write)
 
         elif is_Cbeta(atome_name):
             # On modifie le nom de l'élement à "b" si carbone beta
             str_to_write = f"{'b':<{element_length}}"
-            pdb_out.seek(offset+a_pos_record["element"].start+1)
+            pdb_out.seek(offset+ATOM_POS_RECORD["element"].start+1)
             pdb_out.write(str_to_write)
 
         elif is_aromatique(res_name):
             if is_Carbone_R(atome_name):
                 # Si residu aromatique, et carbone R, element devient "A"
                 str_to_write = f"{'A':<{element_length}}"
-                pdb_out.seek(offset+a_pos_record["element"].start+1)
+                pdb_out.seek(offset+ATOM_POS_RECORD["element"].start+1)
                 pdb_out.write(str_to_write)
         
         offset += len(lines) # Position de notre cadre de lecture
