@@ -1,9 +1,12 @@
 # coding=utf-8
 
-import sys, os, argparse
-from Bio.PDB import PDBParser, PDBIO
-from Bio.PDB.PDBIO import Select
-from Bio.PDB.SASA import ShrakeRupley
+import sys
+import os # gestion des fichiers
+import argparse # gestion des arguments
+from argparse import RawTextHelpFormatter
+
+from Bio.PDB import PDBParser # Lecture fichier PDB
+from Bio.PDB.SASA import ShrakeRupley # Algorithme de calcul de la surface accessible
 
 # Variables globales
 
@@ -18,21 +21,84 @@ ATOM_POS_RECORD = \
     "element":slice(76,78),"charge":slice(78,80)
     } # Position de chacune des colonnes dans un fichier pdb
 
-# argparse module utile pour parser les options lors de l'exécution du script
+# Fonctions
+
+def is_Calpha(str_carbone):
+    """Renvoi True si str_carbone est un carbone alpha"""
+    return "CA" == str_carbone
+
+
+def is_Cbeta(str_carbone):
+    """Renvoi True sir str_carbone est un carbone bétâ"""
+    return "CB" == str_carbone
+
+
+def is_Carbone_R(str_carbone):
+    """Renvoi True si str_carbone est un carbone de la chaîne latérale"""
+    if len(str_carbone) <= 1: # Verifie que nous ne sommes pas sur le carbone COO
+        return False
+    return "C" == str_carbone[0]
+
+
+def is_aromatique(str_acide_amine):
+    """Renvoi True sir str_acide_amine est un résidu aromatique"""
+    aromatiques_valides = ["HIS","PHE","TYR","TRP"]
+    return str_acide_amine in aromatiques_valides
+
+def atom_to_pdb(atom_object):
+    atom_type = "ATOM"
+    serial = atom_object.get_serial_number()
+    atom_name = atom_object.get_name()
+    alt_location = atom_object.get_altloc()
+    res_name = atom_object.get_parent().get_resname()
+    _,_,chain_name,res_id,_ = atom_object.get_full_id()
+    
+    res_code = res_id[2]
+    x, y, z = atom_object.get_coord()
+    occupancy = atom_object.get_occupancy()
+    b_factor = atom_object.get_bfactor()
+    element_symbol = atom_object.element
+    charge = " "
+    
+    if res_id[0] != " ":
+        atom_type = "HETATM"
+
+    pdb_atom_str = ""
+    pdb_atom_str += f"{atom_type:6s}{serial:5d} {atom_name:^4s}{alt_location:1s}{res_name:3s} {chain_name:1s}"
+    pdb_atom_str += f"{res_id[1]:4d}{res_code:1s}   {x:8.3f}{y:8.3f}{z:8.3f}{occupancy:6.2f}"
+    pdb_atom_str += f"{b_factor:>6.0f}          {element_symbol:>2s}{charge:2s}"
+
+    return pdb_atom_str
+    
+# Gestion des arguments
+# argparse permet de parser les options lors de l'exécution du script
 # Nous exigereons d'exécuter notre fichier python en ajoutant en argument
-#   le nom du fichier pdb à traiter
-
+#   obligatoire : le nom du fichier pdb à traiter
+#   optionnelle : la localisation du répertoire en sortie (.../PDB_Atyping/)
 # python pdb_file [-o] repository_out
-parser = argparse.ArgumentParser(description="")
-parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb')
-parser.add_argument('-o','--pdb_out', type=str,help="Emplacement où sera enregistré notre fichier de sortie")
 
-args = parser.parse_args() # Valeurs des arguments passés en argument par l'utilisateur
+args_parser = argparse.ArgumentParser(
+    description="""
+    Lit un fichier pdb et la renvoi avec les valeurs SASA et le typing de l'élément
 
-# Fichier PDB
-parser = PDBParser(QUIET=True)# Lecture Fichier PDB; QUIET=TRUE n'affiche pas msg d'erreur
-io = PDBIO() # Sauvegarde fichier pdb seulements model/atomes
-sr = ShrakeRupley() # Calcul de la surface accessible
+    Si l'option [-o] n'est pas spécifié l'emplacement utilisé
+        est le même que la où se trouve notre fichier pdb en entrée
+
+    Description :
+        La colonne b-factor est remplacée par la valeur SASA
+        L'élément change selon ces critères :
+        Carbone alpha -> a
+        Carbone bétâ -> b
+        Carbone aromatique -> A
+        On ne modifie pas les éléments des autres atomes.
+    """,
+    formatter_class=RawTextHelpFormatter
+    )
+args_parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb') # argument obligatoire
+args_parser.add_argument('-o','--path_out', type=str, # argument optionnel
+help="Emplacement où sera enregistré notre fichier en sortie")
+
+args = args_parser.parse_args() # Valeurs des arguments passés en argument par l'utilisateur
 
 # Vérification des chemins du fichier pdb, et répertoire
 
@@ -60,7 +126,7 @@ path_out_file = os.path.join(pdb_out_directory, pdb_out_file) # chemin du fichie
 
 # Création et vérification fichier/répertoire
 
-#   Vérification de l'existence des fichier
+# Vérification de l'existence des fichier
 path_exists = os.path.exists(path_file) # verifie si le fichier pdb existe
 if not path_exists:
     error_message = \
@@ -70,78 +136,44 @@ if not path_exists:
     """
     sys.exit(error_message)
 
-#   Création de notre répertoire
-if not os.path.isdir(pdb_out_directory): # verifie si le fichier pdb existe
+# Création de notre répertoire pour la conservation du fichier pdb sortant
+if not os.path.isdir(pdb_out_directory): # verifie si le répertoire n'existe pas déjà
     os.mkdir(pdb_out_directory)
 
 # Biopython
 # PDBParser
-# Importation de notre fichier pdb dans un objet
+# Lecture des données PDB à l'aide de PDBParser
+
+parser = PDBParser(QUIET=True) # Lecture Fichier PDB; QUIET=TRUE n'affiche pas de msg d'erreur
+sr = ShrakeRupley() # Calcul de la surface accessible
+
 structure = parser.get_structure(pdb_file_name, path_file) # PDBParser
-io.set_structure(structure) # nous permettra de créer un fichier pdb
+pdb_str_out = ""
 
 # Calcul de la surface accessible de chacun des atomes pour chaques chaînes de notre protéine
+nb_modeles = -1
 for model in structure:
+    nb_modeles += 1
+    # Calcul de la surface accessible
     for chaine in model:
         sr.compute(chaine, level="A")
+    # Typing de l'atome, SASA et élément
+    for atome in model.get_atoms(): 
+        atome.set_bfactor(atome.sasa) # Affectation du SASA
+        res_name = atome.get_parent().get_resname() # Nom du résidu
+        a_name = atome.get_name() # Nom de l'atome
+        # Affectation de l'élément
+        if is_Calpha(a_name): # CA
+            atome.element = 'a'
+        elif is_Cbeta(a_name): # CB
+            atome.element = 'b'
+        elif is_aromatique(res_name) and is_Carbone_R(a_name): # C aromatique
+            atome.element = 'A'
 
-path_exists = os.path.exists(path_out_file) # verifie le chemin du fichier pdb modifie
+        pdb_str_out += f"{atom_to_pdb(atome)}\n"
 
-exit()
-# Fonctions
-
-def is_Carbone_R(str_carbone): # Verifie si Carbone d'une chaine laterale
-    str_carbone_c = str_carbone.strip()
-    if len(str_carbone_c) <= 1: 
-        #Verifie que nous ne sommes pas sur le carbone COO
-        return False
-    return "C" == str_carbone.strip()[0]
-
-def is_Calpha(str_carbone):# verifie si Carbone alpha
-    return "CA" == str_carbone.strip()
-
-def is_Cbeta(str_carbone):# verifie si Carbone beta
-    return "CB" == str_carbone.strip()
-
-def is_aromatique(str_acide_amine): # Verifie si carbone aromatique
-    aromatiques_valides = ["HIS","PHE","TYR","TRP"]
-    return str_acide_amine.strip() in aromatiques_valides
-
-#Ouverture du fichier pdb en lecture et ecriture pour ajouter les element ('a','b','A')
-with open(path_out_file, "r+") as pdb_out:
-    offset = 0 # position dans le cadre de lecture
-    numero_ligne = 0 # numero de la ligne dans le fichier pdb
-
-    # taille de la section element
-    element_length = ATOM_POS_RECORD["element"].stop-ATOM_POS_RECORD["element"].start 
-    
-    for lines in pdb_out:
-        if "ATOM" not in lines[ATOM_POS_RECORD["ATOM"]]: 
-            pass
-
-        atome_name = lines[ATOM_POS_RECORD["atome_name"]]# nom de l'atome a notre ligne
-        res_name = lines[ATOM_POS_RECORD["res_name"]] # nom du residu a notre ligne
-
-        if is_Calpha(atome_name):
-            # On modifie le nom de l'élement à "a" si carbone alpha
-            str_to_write = f"{'a':<{element_length}}"
-            pdb_out.seek(offset+ATOM_POS_RECORD["element"].start+1)
-            pdb_out.write(str_to_write)
-
-        elif is_Cbeta(atome_name):
-            # On modifie le nom de l'élement à "b" si carbone beta
-            str_to_write = f"{'b':<{element_length}}"
-            pdb_out.seek(offset+ATOM_POS_RECORD["element"].start+1)
-            pdb_out.write(str_to_write)
-
-        elif is_aromatique(res_name):
-            if is_Carbone_R(atome_name):
-                # Si residu aromatique, et carbone R, element devient "A"
-                str_to_write = f"{'A':<{element_length}}"
-                pdb_out.seek(offset+ATOM_POS_RECORD["element"].start+1)
-                pdb_out.write(str_to_write)
-        
-        offset += len(lines) # Position de notre cadre de lecture
-        pdb_out.seek(offset) # Necessaire si l'on veut maintenir la position de notre ligne
+#Création de notre fichier pdb typé
+with open(path_out_file, "w") as pdb_out:
+    pdb_out.write(pdb_str_out)
 
 print("job done")
