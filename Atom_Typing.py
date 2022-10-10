@@ -69,7 +69,16 @@ def atom_to_pdb(atom_object):
     pdb_atom_str += f"{b_factor:>6.0f}          {element_symbol:>2s}{charge:2s}"
 
     return pdb_atom_str
-    
+
+def ter_section_pdb(chain_id,res,atome):
+    atome_serial = atome.get_serial_number()
+    ter_section = f"{'TER':6s}{atome_serial+1:>5d}      "
+    ter_section += f"{res.get_resname():3s} "
+    ter_section += f"{chain_id:1s}{res.id[1]:4d}{res.id[0]:1s}\n"
+
+    return ter_section
+
+
 # Gestion des arguments
 # argparse permet de parser les options lors de l'exécution du script
 # Nous exigereons d'exécuter notre fichier python en ajoutant en argument
@@ -148,32 +157,76 @@ parser = PDBParser(QUIET=True) # Lecture Fichier PDB; QUIET=TRUE n'affiche pas d
 sr = ShrakeRupley() # Calcul de la surface accessible
 
 structure = parser.get_structure(pdb_file_name, path_file) # PDBParser
-pdb_str_out = ""
 
 # Calcul de la surface accessible de chacun des atomes pour chaques chaînes de notre protéine
-nb_modeles = -1
+# Et typing de l'élément
 for model in structure:
-    nb_modeles += 1
     # Calcul de la surface accessible
     for chaine in model:
         sr.compute(chaine, level="A")
-    # Typing de l'atome, SASA et élément
-    for atome in model.get_atoms(): 
-        atome.set_bfactor(atome.sasa) # Affectation du SASA
-        res_name = atome.get_parent().get_resname() # Nom du résidu
-        a_name = atome.get_name() # Nom de l'atome
-        # Affectation de l'élément
-        if is_Calpha(a_name): # CA
-            atome.element = 'a'
-        elif is_Cbeta(a_name): # CB
-            atome.element = 'b'
-        elif is_aromatique(res_name) and is_Carbone_R(a_name): # C aromatique
-            atome.element = 'A'
+        # Typing de l'atome, SASA et élément
+        for res in chaine:
+            res_name = res.get_resname() # Nom du résidu
+            for atome in res:
+                a_name = atome.get_name() # Nom de l'atome
+                
+                # Affectation de l'élément
+                if is_Calpha(a_name): # CA
+                    atome.element = 'a'
+                elif is_Cbeta(a_name): # CB
+                    atome.element = 'b'
+                elif is_aromatique(res_name) and is_Carbone_R(a_name): # C aromatique
+                    atome.element = 'A'
+                
+                atome.set_bfactor(atome.sasa) # Affectation du SASA
 
-        pdb_str_out += f"{atom_to_pdb(atome)}\n"
+# Ecriture des sections atomes dans un dictionnaire 
+#   de chaîne contenu dans un dictionnaire de modeles
+# Soit :
+#   chains_from_models[model][chaine] = atomes sections de la chaîne
+#
+chains_from_models = {}
+hetatm_list = ""
+
+for model in structure:
+    last_atm = None
+    last_res = None
+
+    chains_from_models[model.serial_num] = dict()
+    for chaine in model:
+        for atome in chaine.get_atoms():
+            res = atome.get_parent()
+            if res.id[0] == " ": # Atome
+                chains_from_models[model.serial_num][chaine.id] = \
+                    chains_from_models[model.serial_num].get(chaine.id,"")\
+                        + f"{atom_to_pdb(atome)}\n"
+                last_atm = atome
+                last_res = atome.get_parent()
+            else: # Hétéro-Atome
+                hetatm_list += f"{atom_to_pdb(atome)}\n"
+        # Lorsque l'on passe d'une chaîne à l'autre on écrit la section TER
+        chains_from_models[model.serial_num][chaine.id] += \
+            ter_section_pdb(chaine.id, last_res, last_atm)
+
 
 #Création de notre fichier pdb typé
 with open(path_out_file, "w") as pdb_out:
-    pdb_out.write(pdb_str_out)
+    section_to_write_out = ""
+    # Dans le cas o il n'y a qu'un seul modèle
+    if len(chains_from_models) == 1:
+        atomes_section = "".join(chains_from_models[0].values())
+        hetatm_section = "".join(hetatm_list)
+        section_to_write_out+= atomes_section+hetatm_section
 
-print("job done")
+    else: # Plusieurs modeles # Ajout de la section model
+        for key_model in chains_from_models:
+            model_section = f"{'MODEL':6s}    {key_model:>4d}\n"
+            atomes_section = "".join(chains_from_models[key_model].values())
+            endmodel_section = f"{'ENDMDL':6s}\n"
+            section_to_write_out += model_section+atomes_section+endmodel_section
+    
+    end_section = f"{'END':6s}"
+    section_to_write_out += end_section
+    pdb_out.write(section_to_write_out)
+
+print(f"Fichier créer dans : {pdb_directory}")
