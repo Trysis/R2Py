@@ -127,6 +127,9 @@ pdb_file = path_to_pdb[-1] # Nom complet (avec extension) de notre fichier
 
 # PDB en sortie : Emplacement et noms de notre répertoire et fichier pdb en sortie
 pdb_out_directory = os.path.join(pdb_directory,"PDB_Atyping") # Chemin vers le répertoire à créer
+if args.path_out != None:
+    pdb_out_directory = os.path.join(args.path_out,"PDB_Atyping")
+
 pdb_out_file = pdb_file_name + "_Atyping" + pdb_file_extension # nom du fichier pdb à créer
 
 # Chemin complets pour nos fichiers
@@ -215,18 +218,20 @@ with open(path_out_file, "w") as pdb_out:
     # Dans le cas o il n'y a qu'un seul modèle
     if len(chains_from_models) == 1:
         atomes_section = "".join(chains_from_models[0].values())
-        hetatm_section = "".join(hetatm_list)
+        hetatm_section = hetatm_list
         section_to_write_out+= atomes_section+hetatm_section
 
     else: # Plusieurs modeles # Ajout de la section model
         for key_model in chains_from_models:
             model_section = f"{'MODEL':6s}    {key_model:>4d}\n"
             atomes_section = "".join(chains_from_models[key_model].values())
+            hetatm_section = hetatm_list
             endmodel_section = f"{'ENDMDL':6s}\n"
-            section_to_write_out += model_section+atomes_section+endmodel_section
+            section_to_write_out += model_section+atomes_section \
+                                    + hetatm_section+endmodel_section
     
     end_section = f"{'END':6s}"
     section_to_write_out += end_section
     pdb_out.write(section_to_write_out)
 
-print(f"Fichier créer dans : {pdb_directory}")
+print(f"Fichier créé dans : {pdb_out_directory}")
