@@ -8,19 +8,6 @@ from argparse import RawTextHelpFormatter
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB.SASA import ShrakeRupley # Algorithme de calcul de la surface accessible
 
-# Variables globales
-
-ATOM_POS_RECORD = \
-    {
-    "ATOM":slice(0,6),"serial":slice(6,11),
-    "atome_name":slice(12,16),"a_location":slice(16,17),
-    "res_name":slice(17,20),"chain":slice(21,22),
-    "res_nb":slice(22,26),"icode":slice(26,27),
-    "x":slice(30,38),"y":slice(38,46),"z":slice(46,54),
-    "occupancy":slice(54,60),"temperature":slice(60,66),
-    "element":slice(76,78),"charge":slice(78,80)
-    } # Position de chacune des colonnes dans un fichier pdb
-
 # Fonctions
 
 def is_Calpha(str_carbone):
@@ -46,6 +33,11 @@ def is_aromatique(str_acide_amine):
     return str_acide_amine in aromatiques_valides
 
 def atom_to_pdb(atom_object):
+    """
+    Renvoi une ligne de section ATOM (pdb)
+    correspondant à l'objet atome passé
+    en argument
+    """
     atom_type = "ATOM"
     serial = atom_object.get_serial_number()
     atom_name = atom_object.get_name()
@@ -71,6 +63,7 @@ def atom_to_pdb(atom_object):
     return pdb_atom_str
 
 def ter_section_pdb(chain_id,res,atome):
+    """Renvoi une ligne de la section TER (pdb)"""
     atome_serial = atome.get_serial_number()
     ter_section = f"{'TER':6s}{atome_serial+1:>5d}      "
     ter_section += f"{res.get_resname():3s} "
@@ -110,7 +103,6 @@ help="Emplacement où sera enregistré notre fichier en sortie")
 args = args_parser.parse_args() # Valeurs des arguments passés en argument par l'utilisateur
 
 # Vérification des chemins du fichier pdb, et répertoire
-
 # PDB en entrée : Emplacement et nom de notre fichier pdb reçu en entrée
 path_to_pdb = args.pdb_file.split("/")
 
