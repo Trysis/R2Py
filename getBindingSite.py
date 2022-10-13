@@ -5,6 +5,7 @@ import os # gestion des fichiers
 import argparse # gestion des arguments
 from argparse import RawTextHelpFormatter
 
+from Bio.PDB import Selection
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB import NeighborSearch # Algorithme de NeighborSearch
 
@@ -112,13 +113,12 @@ if len(chaines_diff)>0:
         """
     sys.exit(error_message)
 
-for i in tchains_liste:
-    for j in ligands_liste:
-        neighbor = NeighborSearch(
-            structure[0][i].get_atoms()
-            + structure[0][j].get_atoms()
-            )
-        # faire le calcul des distances avec search
+dictionnaire = {}
+atomes_du_ligand = [x for x in structure[0]["A"].get_atoms()]
+atomes_cibles = [x for x in structure[0]["A"].get_atoms()]
+
+neighbor = NeighborSearch(atomes_du_ligand)
+print(neighbor.search(atomes_cibles[0].coord,cutoff_args,'A'))
 
 print(f"chaines = {tchains_liste}")
 print(f"ligands = {ligands_liste}")
