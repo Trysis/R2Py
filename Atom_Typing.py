@@ -8,15 +8,16 @@ from argparse import RawTextHelpFormatter
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB.SASA import ShrakeRupley # Algorithme de calcul de la surface accessible
 
-# Fonctions
+### Fonctions
 
+# Vérification de l'atome
 def is_Calpha(str_carbone):
     """Renvoi True si str_carbone est un carbone alpha"""
     return "CA" == str_carbone
 
 
 def is_Cbeta(str_carbone):
-    """Renvoi True sir str_carbone est un carbone bétâ"""
+    """Renvoi True si str_carbone est un carbone bétâ"""
     return "CB" == str_carbone
 
 
@@ -28,15 +29,63 @@ def is_Carbone_R(str_carbone):
 
 
 def is_aromatique(str_acide_amine):
-    """Renvoi True sir str_acide_amine est un résidu aromatique"""
+    """Renvoi True si str_acide_amine est un résidu aromatique"""
     aromatiques_valides = ["HIS","PHE","TYR","TRP"]
     return str_acide_amine in aromatiques_valides
 
-def atom_to_pdb(atom_object):
+
+# Typing et valeurs SASA
+def atom_typing(model, sr):
     """
-    Renvoi une ligne de section ATOM (pdb)
-    correspondant à l'objet atome passé
-    en argument
+    Argument:
+        objet : model
+            Bio.PDB.Model
+
+    Description:
+        Affecte aux atomes de notre modèle toutes
+            les valeurs sasa à la colonne b-factor
+
+        Et assigne l'élément de notre atome selon
+            certains critères
+    
+    Renvoi:
+        None
+    
+    Modifie en place les atomes de notre objet
+    """
+    # Pour chacune des chaînes, calcul de la surface accessible
+    for chaine in model:
+        sr.compute(chaine, level="A")
+        # Typing de l'atome, SASA et élément
+        for res in chaine:
+            res_name = res.get_resname() # Nom du résidu
+            for atome in res:
+                a_name = atome.get_name() # Nom de l'atome
+                
+                # Affectation de l'élément
+                if is_Calpha(a_name): # CA
+                    atome.element = 'a'
+                elif is_Cbeta(a_name): # CB
+                    atome.element = 'b'
+                elif is_aromatique(res_name) and is_Carbone_R(a_name): # C aromatique
+                    atome.element = 'A'
+                
+                atome.set_bfactor(atome.sasa) # Affectation du SASA
+
+# Ecriture des sections dans un fichier pdb
+def atom_section_pdb(atom_object):
+    """
+    Argument:
+        objet : atom_object
+            Bio.PDB.Atom
+
+    Description:
+        Renvoi une ligne de section ATOM (pdb)
+        correspondant à l'objet atome passé
+        en argument.
+    
+    Renvoi:
+        str : La section (pdb) de l'atome passé en argument
     """
     atom_type = "ATOM"
     serial = atom_object.get_serial_number()
@@ -63,7 +112,23 @@ def atom_to_pdb(atom_object):
     return pdb_atom_str
 
 def ter_section_pdb(chain_id,res,atome):
-    """Renvoi une ligne de la section TER (pdb)"""
+    """
+    Arguments:
+        str : chain_id
+            Nom de la chaine de l'atome
+        objet : res
+            Bio.PDB.Residue (residue de l'atome)
+        objet : atome
+            Bio.PDB.Atom (atome)
+
+    Description:
+        Renvoi une ligne de section TER en
+        prenant en compte le nom de la chaîne
+        de l'atome passé en argument et son résidue
+    
+    Renvoi:
+        str : Renvoi une ligne de la section TER
+    """
     atome_serial = atome.get_serial_number()
     ter_section = f"{'TER':6s}{atome_serial+1:>5d}      "
     ter_section += f"{res.get_resname():3s} "
@@ -71,8 +136,33 @@ def ter_section_pdb(chain_id,res,atome):
 
     return ter_section
 
+def str_sections(model_section, model_key=-1):
+    """
+    Arguments:
+        dictionnaire : model_section
+            Dictionnaire qui contient pour chaque
+            clés 'chaîne' les sections atomes de la chaîne (str)
+        int : model_key
+            numéro du modèle dans le cas où l'on veut
+            ajouter les sections MODEL/ENDMDL
 
-# Gestion des arguments
+    Description:
+        Renvoi les sections atomes et/ou hetatm d'un modèle
+    
+    Renvoi:
+        str : Les sections atomes/hetatm d'un modele
+    """
+    # Dans le cas ou il n'y a qu'un seul modèle
+    if model_key == -1:
+        return "".join(model_section.values())
+
+    else: # Ajout de la section model correspondant
+        model_section = f"{'MODEL':6s}    {model_key:>4d}\n"
+        atm_hetatm_section = "".join(model_section.values())
+        endmodel_section = f"{'ENDMDL':6s}\n"
+        return model_section + atm_hetatm_section + endmodel_section
+
+### Gestion des arguments
 # argparse permet de parser les options lors de l'exécution du script
 # Nous exigereons d'exécuter notre fichier python en ajoutant en argument
 #   obligatoire : le nom du fichier pdb à traiter
@@ -97,133 +187,115 @@ args_parser = argparse.ArgumentParser(
     formatter_class=RawTextHelpFormatter
     )
 args_parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb') # argument obligatoire
-args_parser.add_argument('-o','--path_out', type=str, # argument optionnel
+args_parser.add_argument('-o','--output', type=str, # argument optionnel
 help="Emplacement où sera enregistré notre fichier en sortie")
 
 args = args_parser.parse_args() # Valeurs des arguments passés en argument par l'utilisateur
 
-# Vérification des chemins du fichier pdb, et répertoire
+path_in = args.pdb_file # Nom du chemin vers le fichier pdb
+path_out = args.output # Chemin de destination du fichier en sortie
+
+# Vérification de l'existence du fichier pdb
+path_exists = os.path.exists(path_in) # renvoi True si le fichier existe
+if not path_exists:
+    error_message = \
+    f"""
+    Le fichier pdb dont vous avez spéficié le chemin n'éxiste pas
+    path="{path_in}"\n
+    """
+    sys.exit(error_message)
+
 # PDB en entrée : Emplacement et nom de notre fichier pdb reçu en entrée
 path_to_pdb = args.pdb_file.split("/")
 
-pdb_directory = "./"
-pdb_file = ""
-pdb_file_name = ""
-pdb_file_extension = ""
+pdb_directory = "./" # Correspondra à l'emplacement du répertoire du fichier pdb
+pdb_file = "" # nom du fichier pdb complet
+pdb_file_name = "" # nom du fichier (sans extension)
+pdb_file_extension = "" # extension du fichier
 
-if len(path_to_pdb) > 1: # On assigne à pdb_directory le répertoire où se trouve notre fichier à changer
+if len(path_to_pdb) > 1:
+    # On assigne à pdb_directory le répertoire où se trouve notre fichier
     pdb_directory = "/".join(path_to_pdb[:-1])+"/"
 
 pdb_file_name, pdb_file_extension = os.path.splitext(path_to_pdb[-1]) #nom et extension du fichier pdb
 pdb_file = path_to_pdb[-1] # Nom complet (avec extension) de notre fichier
 
 # PDB en sortie : Emplacement et noms de notre répertoire et fichier pdb en sortie
-pdb_out_directory = os.path.join(pdb_directory,"PDB_Atyping") # Chemin vers le répertoire à créer
-if args.path_out != None:
-    pdb_out_directory = os.path.join(args.path_out,"PDB_Atyping")
+pdb_out_directory_name = "PDB_Atyping" # Nom du répertoire que l'on va créer
+pdb_out_directory = os.path.join(pdb_directory,pdb_out_directory_name)
+
+if path_out != None: # | Chemin vers le répertoire à créer
+    pdb_out_directory = os.path.join(path_out,pdb_out_directory_name)
 
 pdb_out_file = pdb_file_name + "_Atyping" + pdb_file_extension # nom du fichier pdb à créer
-
-# Chemin complets pour nos fichiers
-path_file = args.pdb_file # chemin du fichier pdb en entrée
+# Chemin complet de notre fichier pdb en sortie
 path_out_file = os.path.join(pdb_out_directory, pdb_out_file) # chemin du fichier pdb en sortie
 
-# Création et vérification fichier/répertoire
 
-# Vérification de l'existence des fichier
-path_exists = os.path.exists(path_file) # verifie si le fichier pdb existe
-if not path_exists:
-    error_message = \
-    f"""
-    Le fichier pdb dont vous avez spéficié le chemin n'éxiste pas
-    path="{path_file}"\n
-    """
-    sys.exit(error_message)
-
-# Création de notre répertoire pour la conservation du fichier pdb sortant
-if not os.path.isdir(pdb_out_directory): # verifie si le répertoire n'existe pas déjà
-    os.mkdir(pdb_out_directory)
-
-# Biopython
-# PDBParser
+### PDBParser et ShrakeRupley
 # Lecture des données PDB à l'aide de PDBParser
-
 parser = PDBParser(QUIET=True) # Lecture Fichier PDB; QUIET=TRUE n'affiche pas de msg d'erreur
 sr = ShrakeRupley() # Calcul de la surface accessible
 
-structure = parser.get_structure(pdb_file_name, path_file) # PDBParser
+structure = parser.get_structure(pdb_file_name, path_in) # PDBParser
 
-# Calcul de la surface accessible de chacun des atomes pour chaques chaînes de notre protéine
-# Et typing de l'élément
+# SASA et typing
 for model in structure:
-    # Calcul de la surface accessible
-    for chaine in model:
-        sr.compute(chaine, level="A")
-        # Typing de l'atome, SASA et élément
-        for res in chaine:
-            res_name = res.get_resname() # Nom du résidu
-            for atome in res:
-                a_name = atome.get_name() # Nom de l'atome
-                
-                # Affectation de l'élément
-                if is_Calpha(a_name): # CA
-                    atome.element = 'a'
-                elif is_Cbeta(a_name): # CB
-                    atome.element = 'b'
-                elif is_aromatique(res_name) and is_Carbone_R(a_name): # C aromatique
-                    atome.element = 'A'
-                
-                atome.set_bfactor(atome.sasa) # Affectation du SASA
+    atom_typing(model,sr)
 
-# Ecriture des sections atomes dans un dictionnaire 
-#   de chaîne contenu dans un dictionnaire de modeles
-# Soit :
-#   chains_from_models[model][chaine] = atomes sections de la chaîne
-#
-chains_from_models = {}
-hetatm_list = ""
+
+### Ecriture des sections à mettre dans le fichier pdb
+# Dictionnaire de modèles
+# Ecrit au sein de chaque modèles les sections à écrire dans le fichier pdb
+#   chain_by_models[model][chaine] = sections atome/hetatm de la chaîne 'chaine'
+chain_by_models = {}
 
 for model in structure:
     last_atm = None
     last_res = None
+    hetatm_list = ""
 
-    chains_from_models[model.serial_num] = dict()
+    chain_by_models[model.serial_num] = dict()
     for chaine in model:
+        atoms_section_in_chain = ""
         for atome in chaine.get_atoms():
             res = atome.get_parent()
             if res.id[0] == " ": # Atome
-                chains_from_models[model.serial_num][chaine.id] = \
-                    chains_from_models[model.serial_num].get(chaine.id,"")\
-                        + f"{atom_to_pdb(atome)}\n"
+                atoms_section_in_chain += f"{atom_section_pdb(atome)}\n"
                 last_atm = atome
                 last_res = atome.get_parent()
             else: # Hétéro-Atome
-                hetatm_list += f"{atom_to_pdb(atome)}\n"
+                hetatm_list += f"{atom_section_pdb(atome)}\n"
         # Lorsque l'on passe d'une chaîne à l'autre on écrit la section TER
-        chains_from_models[model.serial_num][chaine.id] += \
-            ter_section_pdb(chaine.id, last_res, last_atm)
+        chain_by_models[model.serial_num][chaine.id] = \
+            atoms_section_in_chain + ter_section_pdb(chaine.id, last_res, last_atm)
+
+    chain_by_models[model.serial_num]["HETATM"] = hetatm_list
 
 
-#Création de notre fichier pdb typé
+### Création de nos données en sortie
+# Création de notre répertoire
+if not os.path.isdir(pdb_out_directory): # Vrai si le répertoire existe
+    # Crée notre répertoire s'il n'xiste pas
+    os.mkdir(pdb_out_directory)
+
+# Création de notre fichier pdb typé
 with open(path_out_file, "w") as pdb_out:
-    section_to_write_out = ""
-    # Dans le cas o il n'y a qu'un seul modèle
-    if len(chains_from_models) == 1:
-        atomes_section = "".join(chains_from_models[0].values())
-        hetatm_section = hetatm_list
-        section_to_write_out+= atomes_section+hetatm_section
+    sections_to_write_out = ""
+
+    # Dans le cas ou il n'y a qu'un seul modèle
+    if len(chain_by_models) == 1:
+        key_model = list(chain_by_models.keys())[0]
+        sections_to_write_out = str_sections(chain_by_models[key_model])
 
     else: # Plusieurs modeles # Ajout de la section model
-        for key_model in chains_from_models:
-            model_section = f"{'MODEL':6s}    {key_model:>4d}\n"
-            atomes_section = "".join(chains_from_models[key_model].values())
-            hetatm_section = hetatm_list
-            endmodel_section = f"{'ENDMDL':6s}\n"
-            section_to_write_out += model_section+atomes_section \
-                                    + hetatm_section+endmodel_section
+        for key_model,model in chain_by_models.items():
+            sections_to_write_out += str_sections(model,key_model)
     
     end_section = f"{'END':6s}"
-    section_to_write_out += end_section
-    pdb_out.write(section_to_write_out)
+    sections_to_write_out += end_section
 
-print(f"Fichier créé dans : {pdb_out_directory}")
+    # Ecriture dans notre fichier typé.pdb
+    pdb_out.write(sections_to_write_out)
+
+print(f"Fichier '{pdb_out_file}' créé dans : '{pdb_out_directory}'")
