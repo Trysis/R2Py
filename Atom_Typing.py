@@ -11,31 +11,46 @@ from Bio.PDB.SASA import ShrakeRupley # Algorithme de calcul de la surface acces
 ### Fonctions
 
 # Vérification de l'atome
-def is_Calpha(str_carbone):
-    """Renvoi True si str_carbone est un carbone alpha"""
-    return "CA" == str_carbone
+def is_Carbone(atome_str):
+    """Renvoi True si atome_str est un carbone"""
+    return "C" == atome_str[0]
 
 
-def is_Cbeta(str_carbone):
-    """Renvoi True si str_carbone est un carbone bétâ"""
-    return "CB" == str_carbone
+def is_Azote(atome_str):
+    """Renvoi True si atome_str est un azote"""
+    return "N" == atome_str
 
 
-def is_Carbone_R(str_carbone):
-    """Renvoi True si str_carbone est un carbone de la chaîne latérale"""
-    if len(str_carbone) <= 1: # Verifie que nous ne sommes pas sur le carbone COO
-        return False
-    return "C" == str_carbone[0]
+def is_Oxygen(atome_str):
+    """Renvoi True si atome_str est un oxygène"""
+    return "O" == atome_str
 
 
-def is_aromatique(str_acide_amine):
-    """Renvoi True si str_acide_amine est un résidu aromatique"""
-    aromatiques_valides = ["HIS","PHE","TYR","TRP"]
-    return str_acide_amine in aromatiques_valides
+def is_Calpha(atome_str):
+    """Renvoi True si atome_str est un carbone alpha"""
+    return "CA" == atome_str
 
 
-# Typing et valeurs SASA
-def atom_typing(model, sr):
+def is_Cbeta(atome_str):
+    """Renvoi True si atome_str est un carbone bétâ"""
+    return "CB" == atome_str
+
+
+def is_CAromatique(str_acide_amine, atome_str):
+    """Renvoi True si atome_str est un carbone est aromatique"""
+    aromatiques = {
+        "HIS":["CG","CD2","CE1"],
+        "PHE":["CG","CD1","CD2","CE1","CE2","CZ"],
+        "TYR":["CG","CD1","CD2","CE1","CE2","CZ"],
+        "TRP":["CG","CD1","CD2","CE2","CE3","CZ2","CZ3","CH2"]
+    }
+    if str_acide_amine in aromatiques:
+        if atome_str in aromatiques[str_acide_amine]:
+            return True
+    return False
+
+
+def atom_typing(model, sr): # Typing et valeurs SASA
     """
     Argument:
         objet : model
@@ -67,10 +82,11 @@ def atom_typing(model, sr):
                     atome.element = 'a'
                 elif is_Cbeta(a_name): # CB
                     atome.element = 'b'
-                elif is_aromatique(res_name) and is_Carbone_R(a_name): # C aromatique
+                elif is_CAromatique(res_name,a_name): # C aromatique
                     atome.element = 'A'
                 
                 atome.set_bfactor(atome.sasa) # Affectation du SASA
+
 
 # Ecriture des sections dans un fichier pdb
 def atom_section_pdb(atom_object):
@@ -88,6 +104,7 @@ def atom_section_pdb(atom_object):
         str : La section (pdb) de l'atome passé en argument
     """
     atom_type = "ATOM"
+    # On récupère les arguments qui compose la section ATOM/HETATM
     serial = atom_object.get_serial_number()
     atom_name = atom_object.get_name()
     alt_location = atom_object.get_altloc()
@@ -101,7 +118,7 @@ def atom_section_pdb(atom_object):
     element_symbol = atom_object.element
     charge = " "
     
-    if res_id[0] != " ":
+    if res_id[0] != " ": # Hétéro-atome
         atom_type = "HETATM"
 
     pdb_atom_str = ""
@@ -110,6 +127,7 @@ def atom_section_pdb(atom_object):
     pdb_atom_str += f"{b_factor:>6.0f}          {element_symbol:>2s}{charge:2s}"
 
     return pdb_atom_str
+
 
 def ter_section_pdb(chain_id,res,atome):
     """
@@ -136,6 +154,7 @@ def ter_section_pdb(chain_id,res,atome):
 
     return ter_section
 
+
 def str_sections(model_section, model_key=-1):
     """
     Arguments:
@@ -161,6 +180,7 @@ def str_sections(model_section, model_key=-1):
         atm_hetatm_section = "".join(model_section.values())
         endmodel_section = f"{'ENDMDL':6s}\n"
         return model_section + atm_hetatm_section + endmodel_section
+
 
 ### Gestion des arguments
 # argparse permet de parser les options lors de l'exécution du script
