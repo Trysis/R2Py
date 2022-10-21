@@ -3,49 +3,10 @@
 import sys
 import os # gestion des fichiers
 import argparse # gestion des arguments
+from Fonction_aux import *
 from argparse import RawTextHelpFormatter
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB import NeighborSearch # Algorithme de NeighborSearch
-
-# Ecriture des sections dans un fichier pdb
-def atom_section_pdb(atom_object):
-    """
-    Argument:
-        objet : atom_object
-            Bio.PDB.Atom
-
-    Description:
-        Renvoi une ligne de section ATOM (pdb)
-        correspondant à l'objet atome passé
-        en argument.
-    
-    Renvoi:
-        str : La section (pdb) de l'atome passé en argument
-    """
-    atom_type = "ATOM"
-    # On récupère les arguments qui compose la section ATOM/HETATM
-    serial = atom_object.get_serial_number()
-    atom_name = atom_object.get_name()
-    alt_location = atom_object.get_altloc()
-    res_name = atom_object.get_parent().get_resname()
-    _,_,chain_name,res_id,_ = atom_object.get_full_id()
-    
-    res_code = res_id[2]
-    x, y, z = atom_object.get_coord()
-    occupancy = atom_object.get_occupancy()
-    b_factor = atom_object.get_bfactor()
-    element_symbol = atom_object.element
-    charge = " "
-    
-    if res_id[0] != " ": # Hétéro-atome
-        atom_type = "HETATM"
-
-    pdb_atom_str = ""
-    pdb_atom_str += f"{atom_type:6s}{serial:5d} {atom_name:^4s}{alt_location:1s}{res_name:3s} {chain_name:1s}"
-    pdb_atom_str += f"{res_id[1]:4d}{res_code:1s}   {x:8.3f}{y:8.3f}{z:8.3f}{occupancy:6.2f}"
-    pdb_atom_str += f"{b_factor:>6.0f}          {element_symbol:>2s}{charge:2s}"
-
-    return pdb_atom_str
 
 # Gestion des arguments passés par l'utilisateur
 args_parser = argparse.ArgumentParser(
