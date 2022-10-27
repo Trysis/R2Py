@@ -4,12 +4,11 @@ import sys
 import os # gestion des fichiers
 import argparse # gestion des arguments
 from argparse import RawTextHelpFormatter
-from Fonction_aux import *
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB.SASA import ShrakeRupley # Algorithme de calcul de la surface accessible
+from fonction_aux import *
 
 ### Fonctions
-
 # Vérification de l'atome
 def is_Carbone(atome_str):
     """Renvoi True si atome_str est un carbone"""
@@ -112,6 +111,7 @@ args_parser = argparse.ArgumentParser(
     """,
     formatter_class=RawTextHelpFormatter
     )
+
 args_parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb') # argument obligatoire
 args_parser.add_argument('-o','--output', type=str, # argument optionnel
 help="Emplacement où sera enregistré notre fichier en sortie")

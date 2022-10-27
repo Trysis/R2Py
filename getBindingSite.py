@@ -3,10 +3,10 @@
 import sys
 import os # gestion des fichiers
 import argparse # gestion des arguments
-from Fonction_aux import *
 from argparse import RawTextHelpFormatter
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB import NeighborSearch # Algorithme de NeighborSearch
+from fonction_aux import *
 
 # Gestion des arguments passés par l'utilisateur
 args_parser = argparse.ArgumentParser(
@@ -71,6 +71,7 @@ if lchains == None:
     """
     sys.exit(error_message)
 
+# Vérifie que le cuftoff est raisonnable
 if cutoff < 4 or cutoff > 12:
     error_message = \
     f"""
@@ -135,7 +136,9 @@ if len(lchains_set)>1:
         Une seule chaîne doit être spécifié pour le ligand.
         """
     sys.exit(error_message)
-    
+
+tchains_set = tchains_set - lchains_set # Pour enlever la même chaîne (ex: A-A)
+
 # Création de notre répertoire pour la conservation du fichier pdb sortant
 if not os.path.isdir(pdb_out_directory): # verifie si le répertoire n'existe pas déjà
     os.mkdir(pdb_out_directory)
@@ -147,33 +150,35 @@ for chain_name in tchains_set:
     neighbor = NeighborSearch(atomes_from_chain)
     close_atoms = None
     
-    if residu :
-        close_atoms = sorted(
-        {close_atm 
-        for atome in latoms 
-        for close_res in neighbor.search(atome.coord, cutoff, 'R')
-        for close_atm in close_res}
-        ,
-        key=lambda item: item.get_serial_number()
-        )
-    elif calpha:
-        close_atoms = sorted(
-        {close_atm
-        for atome in latoms
-        for close_res in neighbor.search(atome.coord, cutoff, 'R')
-        for close_atm in close_res
-        if close_atm.name == "CA"},
-        key=lambda item: item.get_serial_number()
-        )
-    else: #Atomes en contact
-        close_atoms = sorted(
-            {close_atm for atome in latoms for close_atm in neighbor.search(atome.coord, cutoff, 'A')},
-            key=lambda item: item.get_serial_number()
-            )
+    # Attribu à l'objet close_atoms la liste des atomes d'une
+    # chaîne en contact avec les atomes du ligand
+    if residu : # On conserve tous les atomes
+        close_atoms = {
+            close_atm 
+            for atome in latoms 
+            for close_res in neighbor.search(atome.coord, cutoff, 'R')
+            for close_atm in close_res
+        }
+    elif calpha: # On conserve tous les carbones alpha
+        close_atoms = {
+            close_atm
+            for atome in latoms
+            for close_res in neighbor.search(atome.coord, cutoff, 'R')
+            for close_atm in close_res
+            if close_atm.name == "CA"
+        }
+    else: # On conserve tous les atomes en contact
+        close_atoms = {
+            close_atm 
+            for atome in latoms 
+            for close_atm in neighbor.search(atome.coord, cutoff, 'A')
+            }
+            
+    close_atoms = sorted(close_atoms, key=lambda item: item.get_serial_number())
     str_section = "".join([atom_section_pdb(atm_objet)+"\n" for atm_objet in close_atoms])
     
     # pdb_out_file, nom du fichier pdb à créer
-    pdb_out_file = pdb_file_name + "_" + chain_name + ":" + lchains + pdb_file_extension
+    pdb_out_file = pdb_file_name + "_" + chain_name + "-" + lchains + pdb_file_extension
     # Chemin complet
     path_out_file = os.path.join(pdb_out_directory, pdb_out_file) # chemin du fichier pdb en sortie
 
