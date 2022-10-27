@@ -36,7 +36,6 @@ Hiérarchie :
 "." Emplacement actuel
 |-> "PDB/" répertoire
   |-> "1AWR.pdb" fichier pdb
-  |-> "Documents/" répertoire
 
 I.
 Dans le bash :
@@ -46,14 +45,13 @@ Hiérarchie :
 "." Emplacement actuel
 |-> "PDB/" répertoire
   |-> "1AWR.pdb" fichier pdb
-  |-> "Documents/" répertoire
   |-> "PDB_Atyping/" répertoire
     |-> "1AWR_ATyping.pdb" fichier pdb annoté
 
 
 II. Spécifier le chemin sortant
 
-python Atom_Typing.py -o PDB/Documents PDB/1AWR.pdb
+python Atom_Typing.py -o . PDB/1AWR.pdb
 
 -> Crée le répertoire "./PDB_ATyping/"
 -> Crée le fichier 1AWR_ATyping.pdb à "./PDB_ATyping/1AWR_ATyping.pdb"
@@ -62,16 +60,15 @@ hiérarchie :
 "." Emplacement actuel
 |-> "PDB/" répertoire
   |-> "1AWR.pdb" fichier pdb
-  |-> "Documents/" répertoire
-    |-> "PDB_Atyping/" répertoire
-      |-> "1AWR_ATyping.pdb" fichier pdb annoté
+|-> "PDB_Atyping/" répertoire
+|-> "1AWR_ATyping.pdb" fichier pdb annoté
 
 ## getBindingSite
 
 usage: getBindingSite.py [-h] [-t TCHAIN] [-l LCHAIN] [-c CUTOFF] [-o OUTPUT] [-r] [-a] pdb_file
 
     Prend en argument un nom de fichier pdb, des chaînes cibles et le ligand
-    Et renvoi les atomes (pour le moment les carbones alpha) qui sont à une
+    Et renvoi les atomes qui sont à une
     distance inférieur à 5 Angström de notre ligand
 
 
@@ -92,3 +89,23 @@ options:
   -a, --calpha          Option pour afficher les carbones alpha des résidus en contact avec le ligand
 
 ---- Exemple ----
+
+I. Atomes en contacts avec les atomes de la chaîne A
+
+python getBindingSite.py -l A PDB/1AWR.pdb
+
+Hiérarchie :
+"." Emplacement actuel
+|-> "PDB/" répertoire
+  |-> "1AWR.pdb" fichier pdb
+  |-> "PDB_Binding/" répertoire
+    |-> "1AWR_P-A.pdb" fichier pdb
+
+II. Carbones alpha quand le résidus est en contact avec les atomes de la chaîne A
+Attention ! Écrase le fichier de même nom
+
+python getBindingSite.py -l A PDB/1AWR.pdb --calpha
+
+III. Tous les atomes lorsque le résidus est en contact avec les atomes de la chaîne A
+
+python getBindingSite.py -l A PDB/1AWR.pdb --residu
