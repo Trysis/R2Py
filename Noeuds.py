@@ -111,13 +111,11 @@ for x_idx, y_idx in vertex:
     j = atm_idx_pos[atm_idx_keys[key_idx]]
     
     for x_idx_prm, y_idx_prm in vertex[j:]:
-        dist_idx = distance_with_df(x_idx, x_idx_prm, X_dtf, Y_dtf)
-        dist_idx_prm = distance_with_df(y_idx, y_idx_prm, X_dtf, Y_dtf)
+        dist_idx = distance_with_df(x_idx, x_idx_prm, X_dtf, X_dtf)
+        dist_idx_prm = distance_with_df(y_idx, y_idx_prm, Y_dtf, Y_dtf)
 
         if(abs(dist_idx-dist_idx_prm) < seuil):
             edges.append((i, j))
         j += 1
     i += 1
 
-
-n_vertice = vertex.shape[0]
