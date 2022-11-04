@@ -1,8 +1,7 @@
 # coding=utf-8
-
+from ctypes import *
 import numpy as np
 import pandas as pd
-import igraph as ig
 from biopandas.pdb import PandasPdb
 
 # Objets BioPandas
@@ -47,10 +46,31 @@ M = Y.shape[0] # Nombre de lignes dans Y
 # Jointure entre les éléments du fichier PDB1 et PDB2
 #   jointure sur les colonnes dans columns_to_inner
 df_inner = X.merge(Y, on=columns_to_inner, how='inner')
+M = df_inner.shape[0] # Nombre de lignes dans df_inner
 X_idx = df_inner["index_x"]
 Y_idx = df_inner["index_y"]
 
 vertex = np.c_[X_idx, Y_idx] #?
+
+func_edge = CDLL('edgex.so')
+# func_edge.edge.argtypes = POINTER(POINTER(c_int)), POINTER(c_int)
+# func_edge.edge.restype = None
+
+val = [(c_int * M)(*X_idx.values), (c_int * M)(*Y_idx.values)]
+a = POINTER(c_int)
+a.contents = (c_int * M)(*X_idx.values)
+
+b = POINTER(c_int)
+b.contents = (c_int * M)(*Y_idx.values)
+
+mem = POINTER(POINTER(c_int))()
+mem.contents = c_int * 2
+mem[0].contents = a
+mem[1].contents = b
+
+func_edge.edge(mem, M)
+
+exit()
 
 # Calcul la distance entre 2 atomes à partir des
 def distance_with_df(atm_idx1, atm_idx2, ppdb_df1, ppdb_df2):
