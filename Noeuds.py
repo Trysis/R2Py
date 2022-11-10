@@ -17,8 +17,8 @@ columns_to_keep = ['element_symbol'] # Colonnes à conserver
 columns_to_inner = ['element_symbol'] # Colonne à utiliser pour la jointure
 
 # DataFrame 1 et 2 avec les sections nécessaires (ATOM/ HETATM)
-ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])
-ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
+ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])[:6]
+ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])[:4]
 
 # Dtf avec colonnes d'intérêts index, et columns_to_keep
 ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)
@@ -53,22 +53,21 @@ Y_idx = df_inner["index_y"]
 vertex = np.c_[X_idx, Y_idx] #?
 
 func_edge = CDLL('edgex.so')
-# func_edge.edge.argtypes = POINTER(POINTER(c_int)), POINTER(c_int)
-# func_edge.edge.restype = None
 
-val = [(c_int * M)(*X_idx.values), (c_int * M)(*Y_idx.values)]
-a = POINTER(c_int)
-a.contents = (c_int * M)(*X_idx.values)
+val = [list(X_idx.values), list(Y_idx.values)]
 
-b = POINTER(c_int)
-b.contents = (c_int * M)(*Y_idx.values)
+a = (POINTER(c_int) * 2)()
 
-mem = POINTER(POINTER(c_int))()
-mem.contents = c_int * 2
-mem[0].contents = a
-mem[1].contents = b
+ppus = POINTER(POINTER(c_int))
+ppus
+# This creates an array of pointers to ushort[5] arrays
+procs_data = [cast((c_int*vertex.shape[0])(*col_val), POINTER(c_int)) for col_val in val]
+x=(POINTER(c_int) * vertex.shape[1])(*procs_data)
+a = cast(x, ppus) # gets a ushort**
+a
 
-func_edge.edge(mem, M)
+print(f"f{vertex}\n//")
+func_edge.edge(a, M)
 
 exit()
 
