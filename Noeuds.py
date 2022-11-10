@@ -51,23 +51,32 @@ X_idx = df_inner["index_x"]
 Y_idx = df_inner["index_y"]
 
 vertex = np.c_[X_idx, Y_idx] #?
+distX = X_dtf.loc[X_idx, ["x_coord", "y_coord", "z_coord"]]
+distY = Y_dtf.loc[Y_idx, ["x_coord", "y_coord", "z_coord"]]
 
-func_edge = CDLL('edgex.so')
+func_edge = CDLL('D:/JM_Roude/Master_BioInformatique-Ingenieurie-de-Plateforme/UEs/Stage 2/R2Py/edgex.so')
 
-val = [list(X_idx.values), list(Y_idx.values)]
+# X et Y
+n_col = (distX.shape[1])
+dist_pointerX = (POINTER(c_double) * n_col)()
+dist_pointerY = (POINTER(c_double) * n_col)()
 
-a = (POINTER(c_int) * 2)()
+pp_doubleX = POINTER(POINTER(c_double))
+pp_doubleY = POINTER(POINTER(c_double))
 
-ppus = POINTER(POINTER(c_int))
-ppus
-# This creates an array of pointers to ushort[5] arrays
-procs_data = [cast((c_int*vertex.shape[0])(*col_val), POINTER(c_int)) for col_val in val]
-x=(POINTER(c_int) * vertex.shape[1])(*procs_data)
-a = cast(x, ppus) # gets a ushort**
-a
+process_distX = [cast((c_double*distX.shape[0])(*distX[col_in_X].values), POINTER(c_double)) for col_in_X in distX]
+process_distY = [cast((c_double*distY.shape[0])(*distX[col_in_Y].values), POINTER(c_double)) for col_in_Y in distY]
 
-print(f"f{vertex}\n//")
-func_edge.edge(a, M)
+X_pointer_val=(POINTER(c_double) * n_col)(*process_distX)
+Y_pointer_val=(POINTER(c_double) * n_col)(*process_distY)
+
+dist_pointerX = cast(X_pointer_val, pp_doubleX) #
+dist_pointerY = cast(Y_pointer_val, pp_doubleY) #
+
+X_idx_pointer = (c_int * distX.shape[0])(*X_idx.values)
+Y_idx_pointer = (c_int * distY.shape[0])(*Y_idx.values)
+
+func_edge.edge(X_idx_pointer, Y_idx_pointer, dist_pointerX, dist_pointerY, M)
 
 exit()
 
