@@ -1,55 +1,81 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <assert.h>
 
 //gcc -shared edgex.c -o edgex.so
 
-void edge(int ** elem, int x){
-    // x nombre de lignes
-    // y nombre de colonnes
-    for(int i = 0; i<x; i++){
-        printf("x=%d y=%d\n", elem[0][i], elem[1][i]);
-    }
-}
-
-int dist3D(double x1, double y1, double z1, double x2, double y2, double z2){
+double dist3D(double x1, double y1, double z1, double x2, double y2, double z2){
     double dx = (x1 - x2);
     double dy = (y1 - y2);
     double dz = (z1 - z2);
     return sqrt(dx*dx + dy*dy + dz*dz);
 }
 
-void edge2(int * elem_idx1, int * elem_idx2, double ** coord1, double ** coord2, int nrow){
-    int ** edge_matrix = malloc(sizeof(int*) * 2);
-    int mat_row = nrow * nrow;
-    printf("hey\n")
-    //Allocation mémoire des chaques colonnes
-    for(int i=0; i<2; i++)edge_matrix[i] = malloc(sizeof(int) * mat_row);
-    for(int i=0; i<nrow; i++){
-        for(int j=i+1; j<nrow; j++){
-            if(elem_idx1[i] == elem_idx1[j])continue;
-            if(elem_idx2[i] == elem_idx2[j])continue;
+int ** edge(int * index_X, int * index_Y, double ** coordX, double ** coordY, int nrow_coord, int N, int M, int * nrow_edge){
+    int ** edge_matrix = malloc(sizeof(int*) * 2); // edge matrix
+    assert(edge_matrix != NULL);
 
-            double x1 = coord1[i][0];
-            double y1 = coord1[i][1];
-            double z1 = coord1[i][2];
+    //Allocation mémoire de chaques colonnes
+    for(int i=0; i<2; i++){
+        edge_matrix[i] = malloc(sizeof(int) * nrow_coord * nrow_coord);
+        assert(edge_matrix[i] != NULL);
+    }
 
-            double x2 = coord2[i][0];
-            double y2 = coord2[i][1];
-            double z2 = coord2[i][2];
+    int seuil = 1; // Seuil en Angstrom
+    *nrow_edge = 0;
+    for(int i=0; i<nrow_coord; i++){
+        for(int j=i+1; j<nrow_coord; j++){
+            if(index_X[i] == index_X[j])continue;
+            if(*nrow_edge == index_Y[j])continue;
 
-            double x1_prm = coord1[j][0];
-            double y1_prm = coord1[j][1];
-            double z1_prm = coord1[j][2];
+            // coordonnee dans X
+            double x1 = coordX[0][i];
+            double y1 = coordX[1][i];
+            double z1 = coordX[2][i];
 
-            double x2_prm = coord2[j][0];
-            double y2_prm = coord2[j][1];
-            double z2_prm = coord2[j][2];
+            double x1_prm = coordX[0][j];
+            double y1_prm = coordX[1][j];
+            double z1_prm = coordX[2][j];
 
+            // coordonnee dans Y
+            double x2 = coordY[0][i];
+            double y2 = coordY[1][i];
+            double z2 = coordY[2][i];
+
+            double x2_prm = coordY[0][j];
+            double y2_prm = coordY[1][j];
+            double z2_prm = coordY[2][j];
+
+            //Calcul des distances
             double d1 = dist3D(x1, y1, z1, x1_prm, y1_prm, z1_prm);
             double d2 = dist3D(x2, y2, z2, x2_prm, y2_prm, z2_prm);
-            printf("[%d,%d]:%f ; [%d,%d]:%f\n", i, j, d1, i, j, d2);
-            return;
+            if(abs(d1 - d2) <= seuil){
+                int md_idx = index_X[i]*N + index_Y[i];
+                int md_idx_prm = index_X[j]*N + index_Y[j];
+
+                printf("N = %d; M = %d\n", N, M);
+                printf("i:%d [%f, %f, %f]; j:%d [%f, %f, %f]\n",
+                    index_X[i], x1, y1, z1,
+                    index_Y[i], x2, y2, z2);
+                printf("i':%d [%f, %f, %f]; j':%d [%f, %f, %f]\n",
+                    index_X[j], x1_prm, y1_prm, z1_prm,
+                    index_Y[j], x2_prm, y2_prm, z2_prm);
+                
+                printf("md_idx = %d; md_idx_prm = %d\n", md_idx, md_idx_prm);
+                printf("d1 = %f; d2 = %f\n\n", d1, d2);
+
+                edge_matrix[0][*nrow_edge] = md_idx;
+                edge_matrix[1][*nrow_edge] = md_idx_prm;
+
+                *nrow_edge += 1;
+            }
         }
     }
+    // Reallocation de la memoire au nombre de lignes attribuee
+    for(int i=0; i<2; i++){
+        (int *) realloc(edge_matrix[i], sizeof(int) * (*nrow_edge));
+        assert(edge_matrix[i] != NULL);
+    }
+    return edge_matrix;
 }

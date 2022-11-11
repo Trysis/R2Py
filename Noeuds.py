@@ -46,7 +46,8 @@ M = Y.shape[0] # Nombre de lignes dans Y
 # Jointure entre les éléments du fichier PDB1 et PDB2
 #   jointure sur les colonnes dans columns_to_inner
 df_inner = X.merge(Y, on=columns_to_inner, how='inner')
-M = df_inner.shape[0] # Nombre de lignes dans df_inner
+I = df_inner.shape[0] # Nombre de lignes dans df_inner
+
 X_idx = df_inner["index_x"]
 Y_idx = df_inner["index_y"]
 
@@ -55,17 +56,15 @@ distX = X_dtf.loc[X_idx, ["x_coord", "y_coord", "z_coord"]]
 distY = Y_dtf.loc[Y_idx, ["x_coord", "y_coord", "z_coord"]]
 
 func_edge = CDLL('D:/JM_Roude/Master_BioInformatique-Ingenieurie-de-Plateforme/UEs/Stage 2/R2Py/edgex.so')
-
+func_edge.edge.restype = POINTER(POINTER(c_int))
 # X et Y
 n_col = (distX.shape[1])
-dist_pointerX = (POINTER(c_double) * n_col)()
-dist_pointerY = (POINTER(c_double) * n_col)()
 
 pp_doubleX = POINTER(POINTER(c_double))
 pp_doubleY = POINTER(POINTER(c_double))
 
-process_distX = [cast((c_double*distX.shape[0])(*distX[col_in_X].values), POINTER(c_double)) for col_in_X in distX]
-process_distY = [cast((c_double*distY.shape[0])(*distX[col_in_Y].values), POINTER(c_double)) for col_in_Y in distY]
+process_distX = [cast((c_double * distX.shape[0])(*distX[col_in_X].values), POINTER(c_double)) for col_in_X in distX]
+process_distY = [cast((c_double * distY.shape[0])(*distY[col_in_Y].values), POINTER(c_double)) for col_in_Y in distY]
 
 X_pointer_val=(POINTER(c_double) * n_col)(*process_distX)
 Y_pointer_val=(POINTER(c_double) * n_col)(*process_distY)
@@ -76,28 +75,18 @@ dist_pointerY = cast(Y_pointer_val, pp_doubleY) #
 X_idx_pointer = (c_int * distX.shape[0])(*X_idx.values)
 Y_idx_pointer = (c_int * distY.shape[0])(*Y_idx.values)
 
-func_edge.edge(X_idx_pointer, Y_idx_pointer, dist_pointerX, dist_pointerY, M)
+print(distX)
+print(distY)
+nrow_edge = c_int()
+edge_mat = POINTER(POINTER(c_int))
+edge_mat.contents = func_edge.edge(byref(X_idx_pointer), byref(Y_idx_pointer),
+                                    dist_pointerX, dist_pointerY,
+                                    I, N, M, byref(nrow_edge))
 
+print(nrow_edge.value)
+print(f"{edge_mat.contents[0][30]} {edge_mat.contents[1][30]}")
+edge = [(edge_mat.contents[0][i], edge_mat.contents[1][i]) for i in range(nrow_edge.value)]
 exit()
-
-# Calcul la distance entre 2 atomes à partir des
-def distance_with_df(atm_idx1, atm_idx2, ppdb_df1, ppdb_df2):
-    """
-    Calcul la distance entre 2 atomes à partir
-      des coordonnées x, y, z issus des dataframes
-
-    Arguments :
-        atm_idx1 : indice de l'atome 1
-        atm_idx2 : indice de l'atome2
-        ppdb_df1 : dataframe 1
-        ppdb_df2 : dataframe 2
-    """
-    
-    coord_names = ['x_coord', 'y_coord', 'z_coord']
-    x = ppdb_df1[coord_names].iloc[[atm_idx1]].values
-    y = ppdb_df2[coord_names].iloc[[atm_idx2]].values
-    return(np.linalg.norm(x - y))
-
 
 # Edges
 # N > M
