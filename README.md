@@ -1,6 +1,6 @@
 # R2Py
 
-PatchSearch to python
+PatchSearch en python
 
 ## Atom_Typing.py
 
@@ -10,8 +10,8 @@ usage: Atom_Typing.py [-h] [-o OUTPUT] pdb_file
 
     Lit un fichier pdb et la renvoi avec les valeurs SASA et le typing de l'élément
 
-    Si l'option [-o] n'est pas spécifié l'emplacement utilisé
-        est le même que la où se trouve notre fichier pdb en entrée
+    Si l'option [-o] n'est pas spécifié l'emplacement utilisé 
+      est le même que la où se trouve notre fichier pdb en entrée
 
     Description :
         La colonne b-factor est remplacée par la valeur SASA
@@ -22,46 +22,29 @@ usage: Atom_Typing.py [-h] [-o OUTPUT] pdb_file
         On ne modifie pas les éléments des autres atomes.
 
 
-positional arguments:
+arguments obligatoires:
   pdb_file              Chemin vers le fichier pdb
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help            affiche le message d'aide
   -o OUTPUT, --output OUTPUT
 
 
 ---- Exemple ----
 
-Hiérarchie :
-"." Emplacement actuel
-|-> "PDB/" répertoire
-  |-> "1AWR.pdb" fichier pdb
+I. Utilisation simple
 
-I.
-Dans le bash :
 python Atom_Typing.py PDB/1AWR.pdb
 
-Hiérarchie :
-"." Emplacement actuel
-|-> "PDB/" répertoire
-  |-> "1AWR.pdb" fichier pdb
-  |-> "PDB_Atyping/" répertoire
-    |-> "1AWR_ATyping.pdb" fichier pdb annoté
-
+-> Crée le fichier "1AWR_ATyping.pdb" à "./PDB/PDB_ATyping/1AWR_ATyping.pdb"
 
 II. Spécifier le chemin sortant
 
 python Atom_Typing.py -o . PDB/1AWR.pdb
 
 -> Crée le répertoire "./PDB_ATyping/"
--> Crée le fichier 1AWR_ATyping.pdb à "./PDB_ATyping/1AWR_ATyping.pdb"
+-> Crée le fichier "1AWR_ATyping.pdb" à "./PDB_ATyping/1AWR_ATyping.pdb"
 
-hiérarchie :
-"." Emplacement actuel
-|-> "PDB/" répertoire
-  |-> "1AWR.pdb" fichier pdb
-|-> "PDB_Atyping/" répertoire
-|-> "1AWR_ATyping.pdb" fichier pdb annoté
 
 ## getBindingSite
 
@@ -72,11 +55,11 @@ usage: getBindingSite.py [-h] [-t TCHAIN] [-l LCHAIN] [-c CUTOFF] [-o OUTPUT] [-
     distance inférieur à 5 Angström de notre ligand
 
 
-positional arguments:
+arguments obligatoires:
   pdb_file              Chemin vers le fichier pdb
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help            message d'aide
   -t TCHAIN, --tchain TCHAIN
                         Chaînes cibles pour l'évaluation des distances avec le ligand
   -l LCHAIN, --lchain LCHAIN
@@ -94,18 +77,17 @@ I. Atomes en contacts avec les atomes de la chaîne A
 
 python getBindingSite.py -l A PDB/1AWR.pdb
 
-Hiérarchie :
-"." Emplacement actuel
-|-> "PDB/" répertoire
-  |-> "1AWR.pdb" fichier pdb
-  |-> "PDB_Binding/" répertoire
-    |-> "1AWR_P-A.pdb" fichier pdb
+-> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A" (1AWR possède 2 chaînes, A et P)
 
 II. Carbones alpha quand le résidus est en contact avec les atomes de la chaîne A
-Attention ! Écrase le fichier de même nom
+Attention ! (Écrase le fichier de même nom)
 
 python getBindingSite.py -l A PDB/1AWR.pdb --calpha
 
-III. Tous les atomes lorsque le résidus est en contact avec les atomes de la chaîne A
+-> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A"
+
+III. Affiche tous les atomes d'un résidus lorsqu'il est en contact avec un atome de la chaîne A
 
 python getBindingSite.py -l A PDB/1AWR.pdb --residu
+
+-> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A"
