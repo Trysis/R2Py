@@ -25,6 +25,7 @@ ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
 ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)
 ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)
 
+
 # X sera le dataframe avec le plus grand nombre d'atomes
 X, Y = None, None
 X_dtf, Y_dtf = None, None
@@ -40,24 +41,34 @@ else:
     X_dtf = ppdb_df2
     Y_dtf = ppdb_df1
 
+
 # Tailles N et M respectivement des dataframes X et Y
 N = X.shape[0] # Nombre de lignes dans X
 M = Y.shape[0] # Nombre de lignes dans Y
 
-# Jointure entre les éléments du fichier PDB1 et PDB2
-#   jointure sur les colonnes dans columns_to_inner
-df_inner = X.merge(Y, on=columns_to_inner, how='inner')
-I = df_inner.shape[0] # Nombre de lignes dans df_inner
+# Récupération dans un objet des fonctions dans C
+f_node = CDLL('edgex.so')
 
-X_idx = df_inner["index_x"]
-Y_idx = df_inner["index_y"]
+# Vertex
+f_vertex = f_node.vertex
+f_vertex.argtypes = [POINTER(POINTER(c_int)), c_char_p, c_char_p, c_size_t, c_size_t]
+f_vertex.restype = None
 
-vertex = np.c_[X_idx, Y_idx] #?
-distX = df_inner[["x_coord_x", "y_coord_x", "z_coord_x"]]
-distY = df_inner[["x_coord_y", "y_coord_y", "z_coord_y"]]
 
-func_edge = CDLL('D:/JM_Roude/Master_BioInformatique-Ingenieurie-de-Plateforme/UEs/Stage 2/R2Py/edgex.so')
-func_edge.edge.restype = POINTER(POINTER(c_int))
+vertex_mem = POINTER((c_int * (N * M)) * 2)
+
+X_elem_mem = c_char_p(str.encode("".join(X["element_symbol"])))
+Y_elem_mem = c_char_p(str.encode("".join(Y["element_symbol"])))
+Xsize_mem = c_size_t(N)
+Ysize_mem = c_size_t(M)
+
+
+f_vertex(byref(vertex_mem), X_elem_mem, Y_elem_mem, Xsize_mem, Ysize_mem)
+
+exit()
+f_node
+# Edge
+f_node.edge.restype = POINTER(POINTER(c_int))
 # X et Y
 n_col = (distX.shape[1])
 n_row = (distX.shape[0])
@@ -79,7 +90,7 @@ Y_idx_pointer = (c_int * n_row)(*Y_idx.values)
 
 nrow_edge = c_int()
 edge_mat = POINTER(POINTER(c_int))
-edge_mat.contents = func_edge.edge(byref(X_idx_pointer), byref(Y_idx_pointer),
+edge_mat.contents = f_node.edge(byref(X_idx_pointer), byref(Y_idx_pointer),
                                     dist_pointerX, dist_pointerY,
                                     I, N, M, byref(nrow_edge))
 

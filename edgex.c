@@ -12,6 +12,18 @@ double dist3D(double x1, double y1, double z1, double x2, double y2, double z2){
     return sqrt(dx*dx + dy*dy + dz*dz);
 }
 
+void vertex(int ** vertex, char * X_element, char * Y_element, size_t Xsize, size_t Ysize){
+    int compteur = 0;
+    
+    for(int i = 0; i < Xsize; i++){
+        for(int j = 0; j < Ysize; j++){
+            printf("%ld %ld\n", Xsize, Ysize);
+            if(X_element[i] == Y_element[i]){
+
+            }
+        }
+    }
+}
 int ** edge(int * index_X, int * index_Y, double ** coordX, double ** coordY, int nrow_coord, int N, int M, size_t * nrow_edge){
     int ** edge_matrix = malloc(sizeof(int *) * 2); // edge matrix
     assert(edge_matrix != NULL);
@@ -25,9 +37,8 @@ int ** edge(int * index_X, int * index_Y, double ** coordX, double ** coordY, in
     }
 
     int seuil = 1; // Seuil en Angstrom
-    *nrow_edge = 0;
+    size_t nrow_e = 0;
     for(int i=0; i<nrow_coord; i++){
-        printf("%d\n", *nrow_edge);
         for(int j=i+1; j<nrow_coord; j++){
             if(*nrow_edge == (size_t) 48043500)printf("j=%d\n", j);
             if(index_X[i] == index_X[j])continue;
@@ -75,22 +86,23 @@ int ** edge(int * index_X, int * index_Y, double ** coordX, double ** coordY, in
                 edge_matrix[0][*nrow_edge] = i;
                 edge_matrix[1][*nrow_edge] = j;
 
-                *nrow_edge += (size_t) 1;
-                if(*nrow_edge >= size){
+                nrow_e += (size_t) 1;
+                if(nrow_e >= size){
                     size += (size_t)(nrow_coord * nrow_coord);
                     for(int i=0; i<2; i++){
-                            (int *) realloc(edge_matrix[i], sizeof(int) * size);
-                            assert(edge_matrix[i] != NULL);
+                            void * v = realloc(edge_matrix[i], sizeof(int) * size);
+                            assert(v != NULL);
                     }
                 }
             }
         }
     }
+    *nrow_edge = nrow_e;
     printf("hey");
     // Reallocation de la memoire au nombre de lignes attribuee
     for(int i=0; i<2; i++){
-        (int *) realloc(edge_matrix[i], sizeof(int) * (size_t)(*nrow_edge));
-        assert(edge_matrix[i] != NULL);
+        void * v = (int *) realloc(edge_matrix[i], sizeof(int) * (size_t)(*nrow_edge));
+        assert(v != NULL);
     }
     return edge_matrix;
 }
