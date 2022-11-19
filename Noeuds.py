@@ -1,5 +1,6 @@
 # coding=utf-8
 from ctypes import *
+import math
 import igraph as ig
 import numpy as np
 import pandas as pd
@@ -15,16 +16,14 @@ ppdb2.read_pdb('PDB/1AWR.pdb')
 
 records = ['ATOM', 'HETATM'] # records à conserver dans le dataframe
 columns_to_keep = ["x_coord", "y_coord", "z_coord", 'element_symbol'] # Colonnes à conserver
-columns_to_inner = ['element_symbol'] # Colonne à utiliser pour la jointure
 
 # DataFrame 1 et 2 avec les sections nécessaires (ATOM/ HETATM)
 ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])
 ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
 
 # Dtf avec colonnes d'intérêts index, et columns_to_keep
-ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)
-ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)
-
+ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)[:500]
+ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)[:500]
 
 # X sera le dataframe avec le plus grand nombre d'atomes
 X, Y = None, None
@@ -41,59 +40,95 @@ else:
     X_dtf = ppdb_df2
     Y_dtf = ppdb_df1
 
-
 # Tailles N et M respectivement des dataframes X et Y
 N = X.shape[0] # Nombre de lignes dans X
 M = Y.shape[0] # Nombre de lignes dans Y
+NM_row = N * M
 
 # Récupération dans un objet des fonctions dans C
-f_node = CDLL('edgex.so')
+f_node = CDLL('./edgex.so')
 
 # Vertex
+vertex = None
 f_vertex = f_node.vertex
-f_vertex.argtypes = [POINTER(POINTER(c_int)), c_char_p, c_char_p, c_size_t, c_size_t]
+f_vertex.argtypes = [POINTER(POINTER(c_uint32)), c_char_p, c_char_p, c_size_t * 2, POINTER(c_size_t)]
 f_vertex.restype = None
 
+# Creation du vertex vide
+vertex_xy = np.empty(shape=((NM_row), 2), dtype=np.uint32)
 
-vertex_mem = POINTER((c_int * (N * M)) * 2)
+# Conversion en un type interpretable par ctypes
+processV_xy = [POINTER(c_uint32)((c_uint32 * vertex_xy.shape[0])(*col_vertex)) for col_vertex in vertex_xy.T]
+pointerV_xy = (POINTER(POINTER(c_uint32)))((POINTER(c_uint32) * vertex_xy.shape[1])(*processV_xy))
 
+# Arguments à passer à notre fonction C
+ppV_xy = pointerV_xy
 X_elem_mem = c_char_p(str.encode("".join(X["element_symbol"])))
 Y_elem_mem = c_char_p(str.encode("".join(Y["element_symbol"])))
-Xsize_mem = c_size_t(N)
-Ysize_mem = c_size_t(M)
+XYsize_mem = (c_size_t * 2)(*[N, M])  # couple N, M spécifiant la taille de X et Y
+vertex_size_mem = (c_size_t)(0)
 
+# Lancement de la fonction sur C
+f_vertex(ppV_xy, X_elem_mem, Y_elem_mem, XYsize_mem, byref(vertex_size_mem))
 
-f_vertex(byref(vertex_mem), X_elem_mem, Y_elem_mem, Xsize_mem, Ysize_mem)
+# On récupère le vertex
+vertex_nrow = vertex_size_mem.value  # Nombre de ligne du vertex
+vertex = np.array((ppV_xy[0][:vertex_nrow], ppV_xy[1][:vertex_nrow]), ndmin=2).T
 
-exit()
-f_node
 # Edge
-f_node.edge.restype = POINTER(POINTER(c_int))
-# X et Y
-n_col = (distX.shape[1])
-n_row = (distX.shape[0])
+edge = None
+f_edge = f_node.edge
+f_edge.argtypes = [POINTER(POINTER(c_uint32)), POINTER(POINTER(c_uint32)), POINTER(POINTER(c_double)), POINTER(POINTER(c_double)), c_size_t * 3, POINTER(c_size_t)]
+f_edge.restype = None
 
-pp_doubleX = POINTER(POINTER(c_double))
-pp_doubleY = POINTER(POINTER(c_double))
+# Nombre de lignes et colonnes du vertex
+nrow_vertex = vertex.shape[0]
+ncol_vertex = vertex.shape[1]
 
-process_distX = [cast((c_double * n_row)(*distX[col_in_X].values), POINTER(c_double)) for col_in_X in distX]
-process_distY = [cast((c_double * n_row)(*distY[col_in_Y].values), POINTER(c_double)) for col_in_Y in distY]
+va, counts = np.unique(vertex.T[0], return_counts=True)
 
-X_pointer_val=(POINTER(c_double) * n_col)(*process_distX)
-Y_pointer_val=(POINTER(c_double) * n_col)(*process_distY)
+conca = np.concatenate([np.repeat(i, i) - np.arange(i) for i in counts])
+NN_row_vertex = ((nrow_vertex - np.arange(nrow_vertex)).sum(dtype=np.uint64))  # taille de edge au départ
+NN_row_vertex = int(NN_row_vertex)
 
-dist_pointerX = cast(X_pointer_val, pp_doubleX) #
-dist_pointerY = cast(Y_pointer_val, pp_doubleY) #
+if int(math.log10(NN_row_vertex) + 1) >= 7:
+    NN_row_vertex = NN_row_vertex // 6
 
-X_idx_pointer = (c_int * n_row)(*X_idx.values)
-Y_idx_pointer = (c_int * n_row)(*Y_idx.values)
+col_indices = X_dtf.columns.get_indexer(["x_coord", "y_coord", "z_coord"])
 
-nrow_edge = c_int()
-edge_mat = POINTER(POINTER(c_int))
-edge_mat.contents = f_node.edge(byref(X_idx_pointer), byref(Y_idx_pointer),
-                                    dist_pointerX, dist_pointerY,
-                                    I, N, M, byref(nrow_edge))
+coordX = X_dtf.iloc[vertex.T[0], col_indices].T.values
+coordY = Y_dtf.iloc[vertex.T[1], col_indices].T.values
 
-edge = [(edge_mat.contents[0][i], edge_mat.contents[1][i]) for i in range(nrow_edge.value)]
+# Creation de l'array edge vide de taille N*N (N = nrow(vertex))
+# uint32 car max_atom_number = 99 999
+edge_xy = np.empty(shape=((NN_row_vertex), 2), dtype=np.uint64)
+
+# Conversion en un type interpretable par ctypes
+processE_xy = [POINTER(c_uint32)((c_uint32 * edge_xy.shape[0])(*col_edge)) for col_edge in edge_xy.T]
+pointerE_xy = POINTER(POINTER(c_uint32))((POINTER(c_uint32) * edge_xy.shape[1])(*processE_xy))
+
+# Arguments à passer à notre fonction C
+ppE_xy = pointerE_xy
+ppV_xy
+
+ncol_coord = 3
+
+process_coordX = [cast((c_double * nrow_vertex)(*col_in_X), POINTER(c_double)) for col_in_X in coordX]
+pointer_coordX = POINTER(POINTER(c_double))((POINTER(c_double) * ncol_coord)(*process_coordX))
+pp_coordX = pointer_coordX #
+
+process_coordY = [cast((c_double * nrow_vertex)(*col_in_Y), POINTER(c_double)) for col_in_Y in coordY]
+pointer_coordY = POINTER(POINTER(c_double))((POINTER(c_double) * ncol_coord)(*process_coordY))
+pp_coordY = pointer_coordY #
+
+row_N_M_mem = (c_size_t * 3)(*[nrow_vertex, N, M])  # couple N, M spécifiant la taille de X et Y
+edge_size_mem = (c_size_t)(NN_row_vertex)
+
+f_edge(ppE_xy, ppV_xy, pp_coordX, pp_coordY, row_N_M_mem, byref(edge_size_mem))
+
+edge_nrow = edge_size_mem.value  # Nombre de ligne du vertex
+edge = np.array((ppE_xy[0][:edge_nrow], ppE_xy[1][:edge_nrow]), ndmin=2).T
 print(edge)
+print(f"{NN_row_vertex} {edge_nrow}")
+
 exit()
