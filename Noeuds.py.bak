@@ -91,6 +91,9 @@ conca = np.concatenate([np.repeat(i, i) - np.arange(i) for i in counts])
 NN_row_vertex = ((nrow_vertex - np.arange(nrow_vertex)).sum(dtype=np.uint64))  # taille de edge au départ
 NN_row_vertex = int(NN_row_vertex)
 
+if int(math.log10(NN_row_vertex) + 1) >= 7:
+    NN_row_vertex = NN_row_vertex // 6
+
 col_indices = X_dtf.columns.get_indexer(["x_coord", "y_coord", "z_coord"])
 
 coordX = X_dtf.iloc[vertex.T[0], col_indices].T.values
