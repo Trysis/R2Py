@@ -6,7 +6,9 @@ import argparse # gestion des arguments
 from argparse import RawTextHelpFormatter
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB import NeighborSearch # Algorithme de NeighborSearch
-from fonction_aux import *
+
+# Import nos fichiers
+import auxiliaires as aux
 
 # Gestion des arguments passés par l'utilisateur
 args_parser = argparse.ArgumentParser(
@@ -18,27 +20,27 @@ args_parser = argparse.ArgumentParser(
     formatter_class=RawTextHelpFormatter
     )
 
-args_parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb') # argument obligatoire
+args_parser.add_argument('pdb_file', type=str,
+                        help='Chemin vers le fichier pdb') # argument obligatoire
 
 args_parser.add_argument('-t','--tchain', type=str, # argument optionnel
-help="Chaînes cibles pour l'évaluation des distances avec le ligand")
+                        help="Chaînes cibles pour l'évaluation des distances avec le ligand")
 
 args_parser.add_argument('-l','--lchain', type=str, # argument "optionnel"
-help="Chaîne du ligand dont on évaluera la distance avec nos chaînes cibles")
+                        help="Chaîne du ligand dont on évaluera la distance avec nos chaînes cibles")
 
 args_parser.add_argument('-c','--cutoff', type=float, # argument optionnel,
-default=5, help="Distance en Angström à laquelle on considère"
-            +" des atomes en contactes (compris entre 4 et 12), vaut 5 par défaut")
+                        default=5, help="Distance en Angström à laquelle on considère"
+                        + " des atomes en contactes (compris entre 4 et 12), vaut 5 par défaut")
 
 args_parser.add_argument('-o','--output', type=float, # argument optionnel
-help="Chemin vers lequel nous enregistrons nos résultats")
+                        help="Chemin vers lequel nous enregistrons nos résultats")
 
 args_parser.add_argument('-r','--residu',action='store_true',
-help="Option pour afficher les atomes des résidus en contact avec le ligand")
+                        help="Option pour afficher les atomes des résidus en contact avec le ligand")
 
 args_parser.add_argument('-a','--calpha',action='store_true',
-help="Option pour afficher les carbones alpha des résidus en contact avec le ligand")
-
+                        help="Option pour afficher les carbones alpha des résidus en contact avec le ligand")
 
 # Valeurs des arguments passés par l'utilisateur
 args = args_parser.parse_args() # Récupération des arguments
@@ -175,7 +177,7 @@ for chain_name in tchains_set:
             }
             
     close_atoms = sorted(close_atoms, key=lambda item: item.get_serial_number())
-    str_section = "".join([atom_section_pdb(atm_objet)+"\n" for atm_objet in close_atoms])
+    str_section = "".join([aux.atom_section_pdb(atm_objet)+"\n" for atm_objet in close_atoms])
     
     # pdb_out_file, nom du fichier pdb à créer
     pdb_out_file = pdb_file_name + "_" + chain_name + "-" + lchains + pdb_file_extension

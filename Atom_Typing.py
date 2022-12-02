@@ -6,7 +6,9 @@ import argparse # gestion des arguments
 from argparse import RawTextHelpFormatter
 from Bio.PDB import PDBParser # Lecture fichier PDB
 from Bio.PDB.SASA import ShrakeRupley # Algorithme de calcul de la surface accessible
-from fonction_aux import *
+
+# Import nos fichiers
+import auxiliaires as aux
 
 ### Fonctions
 # Vérification de l'atome
@@ -87,7 +89,7 @@ def atom_typing(model, sr): # Typing et valeurs SASA
                 atome.set_bfactor(atome.sasa) # Affectation du SASA
 
 
-### Gestion des arguments
+# ***** Gestion des arguments
 # argparse permet de parser les options lors de l'exécution du script
 # Nous exigereons d'exécuter notre fichier python en ajoutant en argument
 #   obligatoire : le nom du fichier pdb à traiter
@@ -114,8 +116,9 @@ args_parser = argparse.ArgumentParser(
 
 args_parser.add_argument('pdb_file', type=str,help='Chemin vers le fichier pdb') # argument obligatoire
 args_parser.add_argument('-o','--output', type=str, # argument optionnel
-help="Emplacement où sera enregistré notre fichier en sortie")
+                        help="Emplacement où sera enregistré notre fichier en sortie")
 
+# Valeurs des arguments passés par l'utilisateur
 args = args_parser.parse_args() # Valeurs des arguments passés en argument par l'utilisateur
 
 path_in = args.pdb_file # Nom du chemin vers le fichier pdb
@@ -148,17 +151,17 @@ pdb_file = path_to_pdb[-1] # Nom complet (avec extension) de notre fichier
 
 # PDB en sortie : Emplacement et noms de notre répertoire et fichier pdb en sortie
 pdb_out_directory_name = "PDB_Atyping" # Nom du répertoire que l'on va créer
-pdb_out_directory = os.path.join(pdb_directory,pdb_out_directory_name)
+pdb_out_directory = os.path.join(pdb_directory, pdb_out_directory_name)
 
 if path_out != None: # | Chemin vers le répertoire à créer
-    pdb_out_directory = os.path.join(path_out,pdb_out_directory_name)
+    pdb_out_directory = os.path.join(path_out, pdb_out_directory_name)
 
 pdb_out_file = pdb_file_name + "_Atyping" + pdb_file_extension # nom du fichier pdb à créer
 # Chemin complet de notre fichier pdb en sortie
 path_out_file = os.path.join(pdb_out_directory, pdb_out_file) # chemin du fichier pdb en sortie
 
 
-### PDBParser et ShrakeRupley
+# ***** PDBParser et ShrakeRupley
 # Lecture des données PDB à l'aide de PDBParser
 parser = PDBParser(QUIET=True) # Lecture Fichier PDB; QUIET=TRUE n'affiche pas de msg d'erreur
 sr = ShrakeRupley() # Calcul de la surface accessible
@@ -187,19 +190,19 @@ for model in structure:
         for atome in chaine.get_atoms():
             res = atome.get_parent()
             if res.id[0] == " ": # Atome
-                atoms_section_in_chain += f"{atom_section_pdb(atome)}\n"
+                atoms_section_in_chain += f"{aux.atom_section_pdb(atome)}\n"
                 last_atm = atome
                 last_res = atome.get_parent()
             else: # Hétéro-Atome
-                hetatm_list += f"{atom_section_pdb(atome)}\n"
+                hetatm_list += f"{aux.atom_section_pdb(atome)}\n"
         # Lorsque l'on passe d'une chaîne à l'autre on écrit la section TER
         chain_by_models[model.serial_num][chaine.id] = \
-            atoms_section_in_chain + ter_section_pdb(chaine.id, last_res, last_atm)
+            atoms_section_in_chain + aux.ter_section_pdb(chaine.id, last_res, last_atm)
 
     chain_by_models[model.serial_num]["HETATM"] = hetatm_list
 
 
-### Création de nos données en sortie
+# ***** Création de nos données en sortie
 # Création de notre répertoire
 if not os.path.isdir(pdb_out_directory): # Vrai si le répertoire existe
     # Crée notre répertoire s'il n'xiste pas
@@ -209,14 +212,18 @@ if not os.path.isdir(pdb_out_directory): # Vrai si le répertoire existe
 with open(path_out_file, "w") as pdb_out:
     sections_to_write_out = ""
 
-    # Dans le cas ou il n'y a qu'un seul modèle
-    if len(chain_by_models) == 1:
-        key_model = list(chain_by_models.keys())[0]
-        sections_to_write_out = str_sections(chain_by_models[key_model])
+    key_model = list(chain_by_models.keys())[0]
+    sections_to_write_out = aux.str_sections(chain_by_models[key_model])
 
-    else: # Plusieurs modeles # Ajout de la section model
-        for key_model,model in chain_by_models.items():
-            sections_to_write_out += str_sections(model,key_model)
+    # Décommenter pour le typing avec plusieurs modèles
+    # Dans le cas ou il n'y a qu'un seul modèle
+    #if len(chain_by_models) == 1:
+    #    key_model = list(chain_by_models.keys())[0]
+    #    sections_to_write_out = aux.str_sections(chain_by_models[key_model])
+    #
+    #else: # Plusieurs modeles # Ajout de la section model
+    #    for key_model,model in chain_by_models.items():
+    #        sections_to_write_out += aux.str_sections(model,key_model)
     
     end_section = f"{'END':6s}"
     sections_to_write_out += end_section

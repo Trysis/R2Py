@@ -1,4 +1,4 @@
-
+# coding=utf-8
 
 # Ecriture des sections dans un fichier pdb
 def atom_section_pdb(atom_object):
