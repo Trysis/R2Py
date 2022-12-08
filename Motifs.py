@@ -4,8 +4,6 @@ import os # gestion des fichiers
 import argparse # gestion des arguments
 from argparse import RawTextHelpFormatter
 
-import matplotlib.pyplot as plt
-
 from ctypes import * # Python to C
 
 import numpy as np
@@ -73,7 +71,7 @@ ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])
 ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
 
 # Dtf avec colonnes d'intérêts index, et columns_to_keep
-ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)[:30]
+ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)[:100]
 ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)[:10]
 
 # X sera le dataframe avec le plus grand nombre d'atomes
@@ -149,7 +147,12 @@ coordY = Y_dtf.iloc[vertex.T[1], col_indices].T.values
 
 # Creation de l'array edge vide de taille N*N (N = nrow(vertex))
 # uint32 car max_atom_number = 99 999
-edge_xy = np.empty(shape=((NN_row_vertex), 2), dtype=np.uint32)
+#
+from tempfile import mkdtemp
+filename = os.path.join(mkdtemp(), 'tempEdge.dat')
+edge_xy = np.memmap(filename, mode='w+', shape=((NN_row_vertex), 2), dtype=np.uint32)
+
+# edge_xy = np.empty(shape=((NN_row_vertex), 2), dtype=np.uint32)
 
 # Conversion en un type interpretable par ctypes
 processE_xy = [POINTER(c_uint32)((c_uint32 * edge_xy.shape[0])(*col_edge)) for col_edge in edge_xy.T]
@@ -160,11 +163,11 @@ ppE_xy = pointerE_xy
 
 ncol_coord = 3
 
-process_coordX = [cast((c_double * nrow_vertex)(*col_in_X), POINTER(c_double)) for col_in_X in coordX]
+process_coordX = (cast((c_double * nrow_vertex)(*col_in_X), POINTER(c_double)) for col_in_X in coordX)
 pointer_coordX = POINTER(POINTER(c_double))((POINTER(c_double) * ncol_coord)(*process_coordX))
 pp_coordX = pointer_coordX #
 
-process_coordY = [cast((c_double * nrow_vertex)(*col_in_Y), POINTER(c_double)) for col_in_Y in coordY]
+process_coordY = (cast((c_double * nrow_vertex)(*col_in_Y), POINTER(c_double)) for col_in_Y in coordY)
 pointer_coordY = POINTER(POINTER(c_double))((POINTER(c_double) * ncol_coord)(*process_coordY))
 pp_coordY = pointer_coordY #
 
@@ -187,5 +190,10 @@ g = ig.Graph(nrow_vertex, edge)
 # Renvoi les plus grandes cliques
 g.largest_cliques()
 
-layout = g.layout("kk")
-plt.plot(g, layout=layout)
+layout = g.layout("auto")
+ig.plot(g, vertex_size=20, layout=layout,
+        vertex_label=[f"{str(X.loc[idx1, 'element_symbol'])}\n{X_dtf.loc[idx1, 'residue_number']}|{Y_dtf.loc[idx2, 'residue_number']}\n"
+                     for idx1, idx2 in vertex],
+        target='myfile.pdf')
+
+print(X_dtf.columns)

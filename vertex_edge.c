@@ -4,7 +4,7 @@
 #include <assert.h>
 #include <stdint.h>
 
-//gcc -shared edgex.c -o edgex.so
+//gcc -shared vertex_edge.c -o vertex_edge.so
 
 double dist3D(double x1, double y1, double z1, double x2, double y2, double z2){
     double dx = (x1 - x2);
