@@ -2,6 +2,10 @@
 
 PatchSearch en python
 
+## Packages à installer  
+
+conda install -c conda-forge pycairo numpy python-igraph pandas
+
 ## Atom_Typing.py
 -----------------
 Ce script python permet l'annotation des valeurs SASA de chacuns des atomes, et l'annotation des éléments.
