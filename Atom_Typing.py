@@ -51,42 +51,48 @@ def is_CAromatique(str_acide_amine, atome_str):
     return False
 
 
-def atom_typing(model, sr): # Typing et valeurs SASA
-    """
-    Argument:
-        objet : model
-            Bio.PDB.Model
+def atom_typing(structure, for_models=None): # Typing et valeurs SASA
+    """Affecte la surface accessible et le typing des atomes.
 
-    Description:
-        Affecte aux atomes de notre modèle toutes
-            les valeurs sasa à la colonne b-factor
+    Argument :
+        model : Bio.PDB.Model
+        for_models : liste
+            Contient les indices des modèles sur lequel
+            on veut travailler
 
-        Et assigne l'élément de notre atome selon
-            certains critères
-    
-    Renvoi:
-        None
-    
+    Renvoi : None
+
     Modifie en place les atomes de notre objet
     """
-    # Pour chacune des chaînes, calcul de la surface accessible
-    for chaine in model:
-        sr.compute(chaine, level="A")
-        # Typing de l'atome, SASA et élément
-        for res in chaine:
-            res_name = res.get_resname() # Nom du résidu
-            for atome in res:
-                a_name = atome.get_name() # Nom de l'atome
-                
-                # Affectation de l'élément
-                if is_Calpha(a_name): # CA
-                    atome.element = 'a'
-                elif is_Cbeta(a_name): # CB
-                    atome.element = 'b'
-                elif is_CAromatique(res_name,a_name): # C aromatique
-                    atome.element = 'A'
-                
-                atome.set_bfactor(atome.sasa) # Affectation du SASA
+    if for_models is None:
+        for_models = [0]
+
+    # Algorithme pour le Calcul de la surface accessible
+    sr = ShrakeRupley()
+
+    # Pour chacun des modèles sur lequel on veut travailler
+    for indice, model in enumerate(structure):
+        if indice not in for_models:
+            continue
+        # Pour chacune des chaînes, calcul de la surface accessible des atomes
+        for chaine in model:
+            # Ajout des valeurs sasa aux atomes
+            sr.compute(chaine, level="A")
+            # Typing de l'atome, SASA et élément
+            for res in chaine:
+                res_name = res.get_resname() # Nom du résidu
+                for atome in res:
+                    a_name = atome.get_name() # Nom de l'atome
+                    
+                    # Affectation de l'élément
+                    if is_Calpha(a_name): # CA
+                        atome.element = 'a'
+                    elif is_Cbeta(a_name): # CB
+                        atome.element = 'b'
+                    elif is_CAromatique(res_name,a_name): # C aromatique
+                        atome.element = 'A'
+                    
+                    atome.set_bfactor(atome.sasa) # Affectation du SASA
 
 
 # ***** Gestion des arguments
@@ -164,71 +170,40 @@ path_out_file = os.path.join(pdb_out_directory, pdb_out_file) # chemin du fichie
 # ***** PDBParser et ShrakeRupley
 # Lecture des données PDB à l'aide de PDBParser
 parser = PDBParser(QUIET=True) # Lecture Fichier PDB; QUIET=TRUE n'affiche pas de msg d'erreur
-sr = ShrakeRupley() # Calcul de la surface accessible
-
 structure = parser.get_structure(pdb_file_name, path_in) # PDBParser
+work_on_models = [0] # On ne s'intéresse qu'au premier modèle pdb
 
-# SASA et typing
-for model in structure:
-    atom_typing(model,sr)
+atom_typing(structure, work_on_models) # SASA et typing
+chain_by_models = aux.sections_dict(structure, work_on_models)
 
+model_keys = list(chain_by_models.keys())[0]
+sections_to_write_out = aux.str_sections(chain_by_models[model_keys]) + f"{'END':6s}"
 
-### Ecriture des sections à mettre dans le fichier pdb
-# Dictionnaire de modèles
-# Ecrit au sein de chaque modèles les sections à écrire dans le fichier pdb
-#   chain_by_models[model][chaine] = sections atome/hetatm de la chaîne 'chaine'
-chain_by_models = {}
-
-for model in structure:
-    last_atm = None
-    last_res = None
-    hetatm_list = ""
-
-    chain_by_models[model.serial_num] = dict()
-    for chaine in model:
-        atoms_section_in_chain = ""
-        for atome in chaine.get_atoms():
-            res = atome.get_parent()
-            if res.id[0] == " ": # Atome
-                atoms_section_in_chain += f"{aux.atom_section_pdb(atome)}\n"
-                last_atm = atome
-                last_res = atome.get_parent()
-            else: # Hétéro-Atome
-                hetatm_list += f"{aux.atom_section_pdb(atome)}\n"
-        # Lorsque l'on passe d'une chaîne à l'autre on écrit la section TER
-        chain_by_models[model.serial_num][chaine.id] = \
-            atoms_section_in_chain + aux.ter_section_pdb(chaine.id, last_res, last_atm)
-
-    chain_by_models[model.serial_num]["HETATM"] = hetatm_list
-
-
-# ***** Création de nos données en sortie
-# Création de notre répertoire
-if not os.path.isdir(pdb_out_directory): # Vrai si le répertoire existe
-    # Crée notre répertoire s'il n'xiste pas
+# Chemin du répertoire en sortie, le crée s'il n'existe pas
+if not os.path.isdir(pdb_out_directory):
     os.mkdir(pdb_out_directory)
 
-# Création de notre fichier pdb typé
+# Crée le fichier pdb annoté
 with open(path_out_file, "w") as pdb_out:
-    sections_to_write_out = ""
-
-    key_model = list(chain_by_models.keys())[0]
-    sections_to_write_out = aux.str_sections(chain_by_models[key_model])
-
-    # Décommenter pour le typing avec plusieurs modèles
-    # Dans le cas ou il n'y a qu'un seul modèle
-    #if len(chain_by_models) == 1:
-    #    key_model = list(chain_by_models.keys())[0]
-    #    sections_to_write_out = aux.str_sections(chain_by_models[key_model])
-    #
-    #else: # Plusieurs modeles # Ajout de la section model
-    #    for key_model,model in chain_by_models.items():
-    #        sections_to_write_out += aux.str_sections(model,key_model)
-    
-    end_section = f"{'END':6s}"
-    sections_to_write_out += end_section
-
-    # Ecriture dans notre fichier typé.pdb
     pdb_out.write(sections_to_write_out)
+
+# Décommenter pour le typing avec plusieurs modèles
+# Crée le fichier pdb annoté
+#with open(path_out_file, "w") as pdb_out:
+#   sections_to_write_out = ""
+#    # Dans le cas ou il n'y a qu'un seul modèle
+#    if len(chain_by_models) == 1:
+#        model_keys = list(chain_by_models.keys())[0]
+#        sections_to_write_out = aux.str_sections(chain_by_models[model_keys])
+#
+#    else: # Plusieurs modeles # Ajout de la section model
+#        for model_keys,model in chain_by_models.items():
+#            sections_to_write_out += aux.str_sections(model,model_keys)
+#    
+#    end_section = f"{'END':6s}"
+#    sections_to_write_out += end_section
+#
+#    # Ecriture dans notre fichier typé.pdb
+#    pdb_out.write(sections_to_write_out)
 
 print(f"Fichier '{pdb_out_file}' créé dans : '{pdb_out_directory}'")

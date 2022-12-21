@@ -63,7 +63,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 ppdb1 = ppdb1.get_model(1)
 ppdb2 = ppdb2.get_model(1)
 
-records = ['ATOM', 'HETATM'] # records à conserver dans le dataframe
+records = ['ATOM'] # records à conserver dans le dataframe
 columns_to_keep = ["x_coord", "y_coord", "z_coord", 'element_symbol'] # Colonnes à conserver
 
 # DataFrame 1 et 2 avec les sections nécessaires (ATOM/ HETATM)
@@ -71,8 +71,8 @@ ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])
 ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
 
 # Dtf avec colonnes d'intérêts index, et columns_to_keep
-ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)[:100]
-ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)[:10]
+ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)
+ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)
 
 # X sera le dataframe avec le plus grand nombre d'atomes
 X, Y = None, None
@@ -188,12 +188,17 @@ print(f"{NN_row_vertex} {edge_nrow}")
 g = ig.Graph(nrow_vertex, edge)
 
 # Renvoi les plus grandes cliques
-g.largest_cliques()
+cliques = g.largest_cliques()
 
-layout = g.layout("auto")
-ig.plot(g, vertex_size=20, layout=layout,
-        vertex_label=[f"{str(X.loc[idx1, 'element_symbol'])}\n{X_dtf.loc[idx1, 'residue_number']}|{Y_dtf.loc[idx2, 'residue_number']}\n"
-                     for idx1, idx2 in vertex],
-        target='myfile.pdf')
+# layout = g.layout("auto")
+# ig.plot(g, vertex_size=20, layout=layout,
+#        vertex_label=[f"{str(X.loc[idx1, 'element_symbol'])}\n{X_dtf.loc[idx1, 'residue_number']}|{Y_dtf.loc[idx2, 'residue_number']}\n"
+#                     for idx1, idx2 in vertex],
+#        target='myfile.pdf')
 
-print(X_dtf.columns)
+print(g)
+print(cliques)
+
+# Close
+edge_xy._mmap.close()
+os.remove(filename)
