@@ -51,6 +51,7 @@ if not path_exists or not path_exists2:
     sys.exit(error_message)
 
 # ***** Objets BioPandas
+pd.options.mode.chained_assignment = None  # default='warn'
 ppdb1 = PandasPdb()
 ppdb2 = PandasPdb()
 
@@ -59,14 +60,13 @@ ppdb1.read_pdb(path_in)
 ppdb2.read_pdb(path_in2)
 
 # Modele 1
-pd.options.mode.chained_assignment = None  # default='warn'
 ppdb1 = ppdb1.get_model(1)
 ppdb2 = ppdb2.get_model(1)
 
 records = ['ATOM'] # records à conserver dans le dataframe
 columns_to_keep = ["x_coord", "y_coord", "z_coord", 'element_symbol'] # Colonnes à conserver
 
-# DataFrame 1 et 2 avec les sections nécessaires (ATOM/ HETATM)
+# DataFrame 1 et 2 avec les sections nécessaires
 ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])
 ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
 
@@ -111,9 +111,9 @@ processV_xy = [POINTER(c_uint32)((c_uint32 * vertex_xy.shape[0])(*col_vertex)) f
 pointerV_xy = (POINTER(POINTER(c_uint32)))((POINTER(c_uint32) * vertex_xy.shape[1])(*processV_xy))
 
 # Arguments à passer à notre fonction C
-ppV_xy = pointerV_xy
-X_elem_mem = c_char_p(str.encode("".join(X["element_symbol"])))
-Y_elem_mem = c_char_p(str.encode("".join(Y["element_symbol"])))
+ppV_xy = pointerV_xy  # Pointer de pointer de uint32
+X_elem_mem = c_char_p(str.encode("".join(X["element_symbol"])))  # char ** X element_symbol
+Y_elem_mem = c_char_p(str.encode("".join(Y["element_symbol"])))  # char ** Y element_symbol
 XYsize_mem = (c_size_t * 2)(*[N, M])  # couple N, M spécifiant la taille de X et Y
 vertex_size_mem = (c_size_t)(0)
 
