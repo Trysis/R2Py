@@ -68,7 +68,7 @@ def atom_typing(structure, for_models=None): # Typing et valeurs SASA
         for_models = [0]
 
     # Algorithme pour le Calcul de la surface accessible
-    sr = ShrakeRupley()
+    sr = ShrakeRupley(probe_radius=1.40)
 
     # Pour chacun des modèles sur lequel on veut travailler
     for indice, model in enumerate(structure):
@@ -83,7 +83,7 @@ def atom_typing(structure, for_models=None): # Typing et valeurs SASA
                 res_name = res.get_resname() # Nom du résidu
                 for atome in res:
                     a_name = atome.get_name() # Nom de l'atome
-                    
+
                     # Affectation de l'élément
                     if is_Calpha(a_name): # CA
                         atome.element = 'a'

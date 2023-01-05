@@ -71,8 +71,8 @@ ppdb_df1 = pd.concat([ppdb1.df[section] for section in records])
 ppdb_df2 = pd.concat([ppdb2.df[section] for section in records])
 
 # Dtf avec colonnes d'intérêts index, et columns_to_keep
-ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)
-ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)
+ppdb_df1_to_keep = ppdb_df1[columns_to_keep].reset_index(level=0)[:5]
+ppdb_df2_to_keep = ppdb_df2[columns_to_keep].reset_index(level=0)[:3]
 
 # X sera le dataframe avec le plus grand nombre d'atomes
 X, Y = None, None
@@ -185,19 +185,27 @@ print(edge)
 print(f"{NN_row_vertex} {edge_nrow}")
 
 # ***** IGraph
-g = ig.Graph(nrow_vertex, edge)
+g = ig.Graph(nrow_vertex)
+
+layout = g.layout("kk")
+
+visual_style = {}
+visual_style["vertex_size"] = 20
+visual_style["layout"] = layout
+visual_style["bbox"] = (400, 300)
+visual_style["margin"] = 20
+
+layout = g.layout("kk")
+ig.plot(g,
+        vertex_label=[f"{str(X.loc[idx1, 'element_symbol'])}{X_dtf.loc[idx1, 'atom_number']}/{str(Y.loc[idx2, 'element_symbol'])}{Y_dtf.loc[idx2, 'atom_number']}\n"
+                     for idx1, idx2 in vertex],
+        target='myfile.pdf', **visual_style)
 
 # Renvoi les plus grandes cliques
-cliques = g.largest_cliques()
+#cliques = g.largest_cliques()
 
-# layout = g.layout("auto")
-# ig.plot(g, vertex_size=20, layout=layout,
-#        vertex_label=[f"{str(X.loc[idx1, 'element_symbol'])}\n{X_dtf.loc[idx1, 'residue_number']}|{Y_dtf.loc[idx2, 'residue_number']}\n"
-#                     for idx1, idx2 in vertex],
-#        target='myfile.pdf')
-
-print(g)
-print(cliques)
+#print(g)
+#print(cliques)
 
 # Close
 edge_xy._mmap.close()
