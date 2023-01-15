@@ -75,12 +75,14 @@ options:
   -r, --residu &emsp;&emsp;&emsp; Option pour afficher les atomes des résidus en contact avec le ligand  
   -a, --calpha &emsp;&emsp;&emsp; Option pour afficher les carbones alpha des résidus en contact avec le ligand  
 
-## Motifs
------------------
+## Motifs (Incomplet, il manque le calcul du RMSD)
+-----------------  
+
+compiler vertex_edge.c :  
+gcc -shared vertex_edge.c -o vertex_edge.so  
+
 usage: Motifs.py pdb\_file1 pdb\_file2
 
-compiler vertex_edge.c :
-gcc -shared vertex_edge.c -o vertex_edge.so
 -----------------
 ---- Exemple ----
 
