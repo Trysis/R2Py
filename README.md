@@ -1,16 +1,20 @@
-# R2Py
+# R2Py  
 
 PatchSearch en python
 
+
+
 ## Packages à installer  
 
-conda install -c conda-forge pycairo numpy python-igraph pandas
+conda install -c conda-forge biopandas numpy python-igraph pandas
 
-## Atom_Typing.py
------------------
+
+
+## Atom_Typing.py  
+-----------------  
 Ce script python permet l'annotation des valeurs SASA de chacuns des atomes, et l'annotation des éléments.
 
-usage: Atom_Typing.py [-h] [-o OUTPUT] pdb_file
+usage: Atom_Typing.py [-h] [-o OUTPUT] pdb_file  
 
     Lit un fichier pdb et la renvoi avec les valeurs SASA et le typing de l'élément
 
@@ -34,24 +38,29 @@ options:
   -o OUTPUT, --output OUTPUT
 
 
----- Exemple ----
+---- Exemple ----  
 
 __I. Utilisation simple__
 
+```
 python Atom_Typing.py PDB/1AWR.pdb
+```  
 
 -> Crée le fichier "1AWR_ATyping.pdb" à "./PDB/PDB_ATyping/1AWR_ATyping.pdb"
 
 __II. Spécifier le chemin sortant__
 
+```
 python Atom_Typing.py -o . PDB/1AWR.pdb
+```  
 
 -> Crée le répertoire "./PDB_ATyping/"
--> Crée le fichier "1AWR_ATyping.pdb" à "./PDB_ATyping/1AWR_ATyping.pdb"
+-> Crée le fichier "1AWR_ATyping.pdb" au sein de l'emplacement "./PDB_ATyping/1AWR_ATyping.pdb"
 
 
-## getBindingSite
------------------
+
+## getBindingSite  
+----------------- 
 usage: getBindingSite.py [-h] [-t TCHAIN] [-l LCHAIN] [-c CUTOFF] [-o OUTPUT] [-r] [-a] pdb_file
 
     Prend en argument un nom de fichier pdb, des chaînes cibles et le ligand
@@ -75,31 +84,40 @@ options:
   -r, --residu &emsp;&emsp;&emsp; Option pour afficher les atomes des résidus en contact avec le ligand  
   -a, --calpha &emsp;&emsp;&emsp; Option pour afficher les carbones alpha des résidus en contact avec le ligand  
 
-## Motifs (Incomplet, il manque le calcul du RMSD)
------------------  
-
-compiler vertex_edge.c :  
-gcc -shared vertex_edge.c -o vertex_edge.so  
-
-usage: Motifs.py pdb\_file1 pdb\_file2
-
------------------
----- Exemple ----
+---- Exemple ----  
 
 __I. Atomes en contacts avec les atomes de la chaîne A__
 
+```
 python getBindingSite.py -l A PDB/1AWR.pdb
+```  
 
 -> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A" (1AWR possède 2 chaînes, A et P)
 
 __II. Carbones alpha quand le résidus est en contact avec les atomes de la chaîne A Attention !__ (Écrase le fichier de même nom)
 
+```
 python getBindingSite.py -l A PDB/1AWR.pdb --calpha
+```  
 
 -> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A"
 
 __III. Affiche tous les atomes d'un résidus lorsqu'il est en contact avec un atome de la chaîne A__
 
+```
 python getBindingSite.py -l A PDB/1AWR.pdb --residu
+```  
 
--> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A"
+-> Crée un fichier "./PDB/PDB_Binding/1AWR_P-A"  
+
+## Motifs (Incomplet, il manque le calcul du RMSD)  
+-----------------  
+
+compiler vertex_edge.c :
+``` 
+gcc -shared vertex_edge.c -o vertex_edge.so  
+``` 
+
+usage: Motifs.py ligand.pdb target.pdb
+
+-----------------
