@@ -6,7 +6,7 @@ PatchSearch en python
 
 ## Packages à installer  
 
-conda install -c conda-forge biopandas numpy python-igraph pandas
+```conda install -c conda-forge biopandas numpy python-igraph pandas```
 
 
 
@@ -14,28 +14,28 @@ conda install -c conda-forge biopandas numpy python-igraph pandas
 -----------------  
 Ce script python permet l'annotation des valeurs SASA de chacuns des atomes, et l'annotation des éléments.
 
-usage: Atom_Typing.py [-h] [-o OUTPUT] pdb_file  
+usage: `python Atom_Typing.py [-h] [-o OUTPUT] pdb_file`  
+  
+    Lit un fichier pdb et la renvoi avec les valeurs SASA et le typing de l'élément  
 
-    Lit un fichier pdb et la renvoi avec les valeurs SASA et le typing de l'élément
-
-    Si l'option [-o] n'est pas spécifié l'emplacement utilisé 
-      est le même que la où se trouve notre fichier pdb en entrée
-
-    Description :
-        La colonne b-factor est remplacée par la valeur SASA
-        L'élément change selon ces critères :
-        Carbone alpha -> a
-        Carbone bétâ -> b
-        Carbone aromatique -> A
-        On ne modifie pas les éléments des autres atomes.
+    Si l'option [-o] n'est pas spécifié l'emplacement utilisé  
+      est le même que la où se trouve notre fichier pdb en entrée  
+  
+    Description :  
+        La colonne b-factor est remplacée par la valeur SASA  
+        L'élément change selon ces critères :  
+        Carbone alpha -> a  
+        Carbone bétâ -> b  
+        Carbone aromatique -> A  
+        On ne modifie pas les éléments des autres atomes.  
 
 
-arguments obligatoires:
-  pdb_file              Chemin vers le fichier pdb
+arguments obligatoires:  
+  pdb_file              Chemin vers le fichier pdb  
 
-options:
-  -h, --help            affiche le message d'aide
-  -o OUTPUT, --output OUTPUT
+options:  
+  -h, --help            affiche le message d'aide  
+  -o OUTPUT, --output OUTPUT  
 
 
 ---- Exemple ----  
@@ -61,15 +61,15 @@ python Atom_Typing.py -o . PDB/1AWR.pdb
 
 ## getBindingSite  
 ----------------- 
-usage: getBindingSite.py [-h] [-t TCHAIN] [-l LCHAIN] [-c CUTOFF] [-o OUTPUT] [-r] [-a] pdb_file
+usage: `getBindingSite.py [-h] [-t TCHAIN] [-l LCHAIN] [-c CUTOFF] [-o OUTPUT] [-r] [-a] pdb_file`
 
     Prend en argument un nom de fichier pdb, des chaînes cibles et le ligand
     Et renvoi les atomes qui sont à une
     distance inférieur à 5 Angström de notre ligand
 
 
-arguments obligatoires:
-  pdb_file              Chemin vers le fichier pdb
+arguments obligatoires:  
+  pdb_file              Chemin vers le fichier pdb  
 
 options:  
   -h, --help &emsp;&emsp;&emsp; message d'aide  
