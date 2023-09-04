@@ -1,7 +1,8 @@
 # R2Py  
 
-PatchSearch en python
+PatchSearch[1] en python  
 
+1. Rey J, Rasolohery I, Tufféry P, Guyon F, Moroy G. PatchSearch: a web server for off-target protein identification. Nucleic Acids Res. 2019 Jul 2;47(W1):W365-W372. doi: 10.1093/nar/gkz478. PMID: 31131411; PMCID: PMC6602448.
 
 
 ## Packages à installer  
